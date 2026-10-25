@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h1>Результаты матчей</h1>
+
+<div class="match-list">
+    {% for game in games %}
+    <a href="{{ game.get_absolute_url }}" class="match-card-link">
+    <div class="match-card">
+
+        {% if game.is_home %}
+            <div class="team home">
+                <img src="{{ fcalmaz_logo }}" alt="FC Almaz">
+                <span class="team-name">FC Almaz</span>
+            </div>
+
+            <div class="match-info">
+                <div class="match-date">{{ game.date|date:"d M Y" }}</div>
+                <div class="match-score">
+                    <span class="score">{{ game.score }}</span>
+                </div>
+            </div>
+
+            <div class="team away">
+                <span class="team-name">{{ game.opponent }}</span>
+                {% if game.logo %}
+                <img src="{{ game.logo.url }}" alt="{{ game.opponent }}">
+                {% else %}
+                <img src="{{ default_logo }}" alt="{{ game.opponent }}">
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="team home">
+                {% if game.logo %}
+                <img src="{{ game.logo.url }}" alt="{{ game.opponent }}">
+                {% else %}
+                <img src="{{ default_logo }}" alt="{{ game.opponent }}">
+                {% endif %}
+                <span class="team-name">{{ game.opponent }}</span>
+            </div>
+
+            <div class="match-info">
+                <div class="match-date">{{ game.date|date:"d M Y" }}</div>
+                <div class="match-score">
+                    <span class="score">{{ game.score }}</span>
+                </div>
+            </div>
+
+            <div class="team away">
+                <span class="team-name">FC Almaz</span>
+                <img src="{{ fcalmaz_logo }}" alt="FC Almaz">
+            </div>
+        {% endif %}
+
+    </div>
+    </a>
+    {% empty %}
+        <p>Матчи не найдены.</p>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block navigation %}
+    {% if page_obj.has_other_pages %}
+        <nav class="list-pages">
+            <ul>
+                {% if page_obj.has_previous %}
+                    <li class="page-num">
+                        <a href="?page={{ page_obj.previous_page_number }}"><</a>
+                    </li>
+                {% endif %}
+
+                {% for p in paginator.page_range %}
+                    {% if page_obj.number == p %}
+                        <li class="page-num page-num-selected">{{ p }}</li>
+                    {% elif p >= page_obj.number|add:-2 and p <= page_obj.number|add:2 %}
+                        <li class="page-num">
+                            <a href="?page={{ p }}">{{ p }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-num">
+                        <a href="?page={{ page_obj.next_page_number }}">></a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endblock %}

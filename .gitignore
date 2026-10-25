@@ -1,0 +1,24 @@
+# Виртуальное окружение
+djvenv/
+venv/
+env/
+
+# Файлы окружения и секреты
+.env
+.env.local
+.env.example
+
+# Логи и медиа
+*.log
+fcalmaz/logs/
+fcalmaz/media/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/

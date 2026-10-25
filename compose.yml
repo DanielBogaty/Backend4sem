@@ -1,0 +1,76 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx-server
+    restart: always
+    networks:
+      - dbnet
+    ports:
+      - "80:8088"
+    volumes:
+      - ./fcalmaz/static:/app/www/fcalmaz/static
+      - ./fcalmaz/media:/app/www/fcalmaz/media
+      - ./fcalmaz/logs:/app/www/fcalmaz/logs
+      - ./nginx:/etc/nginx/conf.d
+    depends_on:
+      - fcalmaz
+  
+  fcalmaz:
+    image: danielbogaty/fcalmaz-docker:latest
+    container_name: fcalmaz
+    restart: always
+    command: "gunicorn -c gunicorn.py fcalmaz.wsgi"
+    env_file:
+      - .env
+    links:
+      - "postgres:dbps"
+    volumes:
+      - ./fcalmaz:/app/www/fcalmaz
+    ports:
+      - "8000:8000"
+    networks:
+      - dbnet
+    depends_on:
+      - postgres
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    ports:
+      - "8080:8080"
+    links:
+      - "postgres:db"
+    networks:
+      - dbnet
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: psgr
+    environment:
+      - POSTGRES_DB=${DATABASE_NAME}
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - dbnet
+  
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - dbnet
+  
+networks:
+  dbnet:
+    driver: bridge
+  
+volumes:
+  postgres-data:
+  redis-data:

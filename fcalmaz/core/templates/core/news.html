@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+        <article class="news-article">
+            <h1 class="news-title">{{ news.title }}</h1>
+            
+            <div class="news-meta">
+                <p>Дата публикации: {{ news.time_create|date:"d-m-Y" }}</p>
+            </div>
+            
+            <div class="news-content">
+                {% if news.photo %}
+                <div class="news-image-container">
+                    <img src="{{ news.photo.url }}" alt="{{ news.title }}" class="news-image">
+                </div>
+                {% endif %}
+                
+                <div class="news-text">
+                    {{ news.content|linebreaks }}
+                </div>
+            </div>
+        </article>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Удаление комментария</h1>
+<form method="post">
+    {% csrf_token %}
+    <p>Вы уверены, что хотите удалить этот комментарий?</p>
+    <button type="submit" class="btn btn-danger">Удалить</button>
+    <a href="{% url 'forum:post' post_slug=object.post.slug %}" class="btn">Отмена</a>
+</form>
+{% endblock %}

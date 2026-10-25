@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h1>Информация о матче</h1>
+
+<div class="match-detail">
+    {% if match.is_home %}
+        <div class="team-row">
+            <div class="team home team-detail">
+                <img src="{{ fcalmaz_logo }}" alt="FC Almaz">
+                <span class="team-name-detail">FC Almaz</span>
+            </div>
+
+            <div class="match-info">
+                <div class="match-date">{{ match.date|date:"d M Y" }}</div>
+                <div class="match-score-detail">
+                    {% if match.score == None %}
+                        {% if match.time == None %}
+                            <span class="score">--:--</span>
+                        {% else %}
+                            <span class="score">{{ match.time }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="score">{{ match.score }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="team away team-detail">
+                <span class="team-name-detail">{{ match.opponent }}</span>
+                {% if match.logo %}
+                <img src="{{ match.logo.url }}" alt="{{ match.opponent }}">
+                {% else %}
+                <img src="{{ default_logo }}" alt="{{ match.opponent }}">
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="team-row">
+            <div class="team home team-detail">
+                {% if match.logo %}
+                <img src="{{ match.logo.url }}" alt="{{ match.opponent }}">
+                {% else %}
+                <img src="{{ default_logo }}" alt="{{ match.opponent }}">
+                {% endif %}
+                <span class="team-name-detail">{{ match.opponent }}</span>
+            </div>
+
+            <div class="match-info">
+                <div class="match-date">{{ match.date|date:"d M Y" }}</div>
+                <div class="match-score-detail">
+                    {% if match.score == None %}
+                        {% if match.time == None %}
+                            <span class="score">--:--</span>
+                        {% else %}
+                            <span class="score">{{ match.time }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="score">{{ match.score }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="team away team-detail">
+                <span class="team-name-detail">FC Almaz</span>
+                <img src="{{ fcalmaz_logo }}" alt="FC Almaz">
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="match-meta">
+        {% if match.is_future %}
+            <p>Матч был сыгран.</p>
+        {% else %}
+            <p>Матч ещё не был сыгран.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

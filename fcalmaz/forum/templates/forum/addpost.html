@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block forum %}
+    {% if user.is_authenticated %}
+        <li><a href="{% url 'forum:add_post' %}">Написать пост</a></li>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<h1>{{title}}</h1>
+<form action="" method="post", enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-error">{{ form.non_field_error }}</div>
+    {% for f in form %}
+        <p><label class="form-label" for="{{ f.id_for_label }}">{{ f.label}}</label>{{ f }}</p>
+        <div class="form-error">{{ f.errors}}</div>
+    {% endfor %}
+    <p>
+        <button class="btn-save" type="submit">Сохранить</button>
+        {% if form.instance.pk %}  {# Показываем только при редактировании существующего поста #}
+            <a href="{% url 'forum:delete_post' post_slug=form.instance.slug %}" class="btn-delete">Удалить пост</a>
+        {% endif %}
+    </p>
+</form>
+{% endblock%}

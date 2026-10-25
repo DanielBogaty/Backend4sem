@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<h1>{{title}}</h1>
+
+<div>
+    <h2 class="section-title">Тренеры</h2>
+    <div class="players-container">
+        {% for coach in coaches %}
+        <a href="{{ coach.get_absolute_url }}" class="player-card-link">
+            <div class="player-card">
+                <img src="{{ coach.photo.url }}" alt="{{ coach.name }}">
+                <div class="player-info">
+                    <div class="position">{{ coach.pos.name }}</div>
+                    <div class="name">{{ coach.name }}</div>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <p>Тренеры не найдены.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div>
+    <h2 class="section-title">Вратари</h2>
+    <div class="players-container">
+        {% for goalkeeper in goalkeepers %}
+        <a href="{{ goalkeeper.get_absolute_url }}" class="player-card-link">
+            <div class="player-card">
+                <img src="{{ goalkeeper.photo.url }}" alt="{{ goalkeeper.name }}">
+                <div class="player-info">
+                    <div class="position">{{ goalkeeper.pos.name }}</div>
+                    <div class="name">{{ goalkeeper.name }}</div>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <p>Вратари не найдены.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div>
+    <h2 class="section-title">Защитники</h2>
+    <div class="players-container">
+        {% for defender in defenders %}
+        <a href="{{ defender.get_absolute_url }}" class="player-card-link">
+            <div class="player-card">
+                <img src="{{ defender.photo.url }}" alt="{{ defender.name }}">
+                <div class="player-info">
+                    <div class="position">{{ defender.pos.name }}</div>
+                    <div class="name">{{ defender.name }}</div>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <p>Защитники не найдены.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div>
+    <h2 class="section-title">Полузащитники</h2>
+    <div class="players-container">
+        {% for midfielder in midfielders %}
+        <a href="{{ midfielder.get_absolute_url }}" class="player-card-link">
+            <div class="player-card">
+                <img src="{{ midfielder.photo.url }}" alt="{{ midfielder.name }}">
+                <div class="player-info">
+                    <div class="position">{{ midfielder.pos.name }}</div>
+                    <div class="name">{{ midfielder.name }}</div>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <p>Полузащитники не найдены.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div>
+    <h2 class="section-title">Нападающие</h2>
+    <div class="players-container">
+        {% for forward in forwards %}
+        <a href="{{ forward.get_absolute_url }}" class="player-card-link">
+            <div class="player-card">
+                <img src="{{ forward.photo.url }}" alt="{{ forward.name }}">
+                <div class="player-info">
+                    <div class="position">{{ forward.pos.name }}</div>
+                    <div class="name">{{ forward.name }}</div>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <p>Нападающие не найдены.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

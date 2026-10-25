@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+{{ player.name }} — Профиль
+{% endblock %}
+
+{% block content %}
+<div class="player-profile">
+    <div class="profile-details">
+        <h1>{{ player.name }}</h1>
+        <p><strong>Позиция:</strong> {{ player.pos.name }}</p>
+
+        <table>
+            <tr>
+                <td><strong>Дата рождения:</strong></td>
+                <td>{{ player.get_birth_date_display }}</td>
+            </tr>
+            <tr>
+                <td><strong>Национальность:</strong></td>
+                <td>{{ player.get_nationality_display }}</td>
+            </tr>
+            <tr>
+                <td><strong>Рост:</strong></td>
+                <td>{{ player.get_height_display }}</td>
+            </tr>
+            <tr>
+                <td><strong>Вес:</strong></td>
+                <td>{{ player.get_weight_display }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="player-image">
+        {% if player.photo %}
+            <img src="{{ player.photo.url }}" alt="{{ player.name }}">
+        {% else %}
+            <p>Фото отсутствует</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

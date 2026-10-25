@@ -1,0 +1,64 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+    <link type="text/css" href="{% static 'core/css/styles.css' %}" rel="stylesheet" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <link rel="shortcut icon" href="{% static 'core/images/main-ico.png' %}" type="image/x-icon" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <header class="header">
+        <nav>
+            <ul id="mainmenu" class="mainmenu">
+                <li class="logo">
+                    <a href="{% url 'home' %}">
+                        <div class="logo"></div>
+                    </a>
+                </li>
+                {% for m in menu %}
+                    <li><a href="{% url m.url_name %}">{{ m.title }}</a></li>
+                {% endfor %}
+
+                {% block forum %}
+                {% endblock %}
+
+                {% if user.is_authenticated %}
+                    <li class="last">
+                        <a href="{% url 'users:profile' %}">{{ user.username }}</a> | 
+                        <form id="logoutForm" method="post" action="{% url 'users:logout' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <a href="#" onclick="document.getElementById('logoutForm').submit(); return false;">Выйти</a>
+                        </form>
+                    </li>
+                {% else %}
+                    <li class="last">
+                        <a href="{% url 'users:login' %}">Войти</a> | 
+                        <a href="{% url 'users:register' %}">Регистрация</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        <div class="clear"></div>
+    </header>
+
+    <main class="content">
+        {% block breadcrumbs %}
+        {% endblock %}
+
+        <div class="content-text">
+            {% block content %}
+            {% endblock %}
+        </div>
+
+        {% block navigation %}
+        {% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 Частичное или полное копирование информации с данного сайта для распространения на других ресурсах, в том числе и бумажных, не запрещается.</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Профиль</h1>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% if user.photo %}
+    <p><img src="{{ user.photo.url }}"></p>
+    {% else %}
+    <p><img src="{{ default_image }}"></p>
+    {% endif %}
+    
+    <input type="hidden" name="next" value="{{ next }}"/>
+    <div class="form-error">{{ form.non_field_error }}</div>
+    {% for f in form %}
+        <p><label class="form-label" for="{{ f.id_for_label }}">{{ f.label}}</label>{{ f }}</p>
+        <div class="form-error">{{ f.errors}}</div>
+    {% endfor %}   
+    <p><button type="submit">Сохранить</button></p>
+</form>
+
+{% if not perms.users.social_auth %}
+<hr>
+<p><a href="{% url 'users:password_change' %}">Сменить пароль</a></p>
+{% endif %}
+
+<hr>
+<h2>Мои посты</h2>
+{% if posts %}
+    <div class="posts-list">
+        {% for post in posts %}
+            <div class="post-article">
+                <div class="post-header">
+                    <h3><a href="{% url 'forum:post' post.slug %}">{{ post.title }}</a></h3>
+                    <span class="post-status {% if post.is_published %}published{% else %}draft{% endif %}">
+                        {% if post.is_published %}Опубликовано{% else %}Черновик{% endif %}
+                    </span>
+                </div>
+                <p>{{ post.content|truncatechars:100 }}</p>
+                <div class="post-meta">
+                    <time>Дата: {{ post.time_create|date:"d.m.Y H:i" }}</time>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="post-article">
+        <p>Вы пока не опубликовали ни одного поста.</p>
+    </div>
+{% endif %}
+
+
+
+{% endblock %}

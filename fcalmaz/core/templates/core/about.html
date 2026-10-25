@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h1 class="display-4 text-center mb-4">FC Almaz - больше чем клуб</h1>
+            <div class="text-center mb-5">
+                <img src="{% static 'core/images/team_photo.jpg' %}" alt="Команда FC Almaz" class="img-fluid rounded shadow-lg" style="max-height: 400px;">
+            </div>
+
+            <section class="mb-5">
+                <h2 class="mb-3">Наша история</h2>
+                <p>Основанный в 1992 году, FC Almaz прошел путь от любительской команды до одного из самых узнаваемых клубов в регионе. Наш девиз - "Через трудности к звездам" - отражает всю историю клуба.</p>
+                <p>В 2005 году мы впервые вышли в Премьер-лигу, а в 2012-м сделали золотой дубль, выиграв чемпионат и кубок страны.</p>
+            </section>
+
+            <section class="mb-5">
+                <h2 class="mb-3">Стадион</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p>Наш дом - стадион "Алмаз-Арена" вместимостью 25,000 зрителей. Открытый в 2010 году, он соответствует всем международным стандартам.</p>
+                        <ul>
+                            <li>Размер поля: 105×68 м</li>
+                            <li>Подогрев поля</li>
+                            <li>4 звезды UEFA</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <img src="{% static 'core/images/stadium.jpg' %}" alt="Стадион Алмаз-Арена" class="img-fluid rounded">
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-5">
+                <h2 class="mb-3">Достижения</h2>
+                <div class="achievements">
+                    <div class="achievement-item">
+                        <span class="achievement-year">2012</span>
+                        <span class="achievement-text">Чемпион Премьер-лиги</span>
+                    </div>
+                    <div class="achievement-item">
+                        <span class="achievement-year">2012</span>
+                        <span class="achievement-text">Обладатель Кубка страны</span>
+                    </div>
+                    <div class="achievement-item">
+                        <span class="achievement-year">2015</span>
+                        <span class="achievement-text">Финалист Кубка Лиги</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-5">
+                <h2 class="mb-3">Академия</h2>
+                <p>Наша футбольная академия воспитала более 20 игроков для основной команды. Ежегодно более 300 юных футболистов проходят обучение в наших центрах.</p>
+                <p>Главный принцип: "Сначала человек, потом футболист". Мы гордимся не только спортивными, но и академическими успехами наших воспитанников.</p>
+            </section>
+
+            <section class="mb-5">
+                <h2 class="mb-3">Фанатская культура</h2>
+                <p>Наши болельщики - самые преданные в стране. Средняя посещаемость домашних матчей - 18,500 зрителей.</p>
+                <p>Фан-клуб "Алмазные Сердца" существует с 1995 года и объединяет более 10,000 фанатов по всему миру.</p>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

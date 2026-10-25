@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block forum %}
+    {% if user.is_authenticated %}
+        <li><a href="{% url 'forum:add_post' %}">Написать пост</a></li>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+        <div class="post-article">
+            <h1>{{ post.title }}</h1>
+
+            <div class="post-meta">
+                <p>Автор: <strong>{{ post.author.username }}</strong></p>
+                <p>Дата создания: {{ post.time_create|date:"d-m-Y H:i:s" }}</p>
+                <p>Последнее изменение: {{ post.time_update|date:"d-m-Y H:i:s" }}</p>
+            </div>
+
+            {% if post.photo %}
+                <p><img class="news-image" src="{{ post.photo.url }}"></p>
+            {% endif %}
+
+            <div class="post-content">
+                {{ post.content|linebreaks }}
+            </div>
+
+            {% if user.is_authenticated and user == post.author %}
+            <div class="edit-post-container">
+                <a href="{% url 'forum:edit_post' post.slug %}" class="edit-button">Редактировать пост</a>
+            </div>
+        {% endif %}
+        </div>
+
+        <div class="post-comments">
+            <h2>Добавить комментарий</h2>
+            {% if user.is_authenticated %}
+                <form method="post" action="{% url 'forum:add_comment' post.slug %}">
+                    {% csrf_token %}
+                    {{ form_class.as_p }}
+                    <button type="submit" class="btn">Отправить</button>
+                </form>
+            {% else %}
+                <p>Чтобы оставить комментарий, <a href="{% url 'users:login' %}">войдите</a> или <a href="{% url 'users:register' %}">зарегистрируйтесь</a>.</p>
+            {% endif %}
+
+            
+            <ul class="comment-list">
+                <h3>Комментарии</h3>
+                {% for comment in comments %}
+                    <li class="comment">
+                        <div class="comment-header">
+                            {% if comment.author.photo %}
+                            <img src="{{ comment.author.photo.url }}" alt="{{ comment.author.username }}" class="avatar" />
+                            {% else %}
+                            <p><img src="{{ default_image }}" alt="{{ comment.author.username }}" class="avatar"></p>
+                            {% endif %}
+                            <div class="comment-info">
+                                <span class="username">{{ comment.author.username }}</span>
+                                <span class="timestamp">{{ comment.time_create|date:"d-m-Y H:i:s" }}</span>
+                            </div>
+                        </div>
+                        <div class="comment-body">
+                            <p>{{ comment.content }}</p>
+                            {% if user.is_authenticated and user == comment.author %}
+                            <div class="comment-actions">
+                                <a href="{% url 'forum:edit_comment' comment.id %}" class="btn-save">Редактировать</a>
+                                <a href="{% url 'forum:delete_comment' comment.id %}" class="btn-delete">Удалить</a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% empty %}
+                    <li>Комментариев пока нет. Будьте первым!</li>
+                {% endfor %}
+            </ul>
+        </div>
+{% endblock %}
