@@ -5,8 +5,10 @@ from fcalmaz import settings
 from django.conf.urls.static import static
 from django.contrib.sitemaps.views import sitemap
 from django.views.decorators.cache import cache_page
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from core.sitemaps import NewsSitemap
+
 
 sitemaps = {
     'news': NewsSitemap,
@@ -22,6 +24,9 @@ urlpatterns = [
     path('social-auth/', include('social_django.urls', namespace="social")),
     path('captcha/', include('captcha.urls')),
     path('sitemap.xml', cache_page(86400)(sitemap), {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap')
+    path('api/', include('shop.urls')),
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/schema/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
 
 
