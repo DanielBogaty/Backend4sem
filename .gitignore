@@ -6,12 +6,12 @@ env/
 # Файлы окружения и секреты
 .env
 .env.local
-.env.example
 
 # Логи и медиа
 *.log
 fcalmaz/logs/
 fcalmaz/media/
+fcalmaz/db.json
 
 # Python
 __pycache__/
