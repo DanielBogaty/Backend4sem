@@ -1,9 +1,13 @@
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.core.cache import cache
 from django.db.models import Q
+from drf_spectacular.utils import extend_schema, OpenApiTypes, OpenApiParameter, OpenApiExample
+from drf_spectacular.utils import inline_serializer
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Product, Cart, CartItem, PromoCode
 from .serializers import (
@@ -35,9 +39,9 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     pagination_class = ProductPagination
     filter_backends = [
-        'django_filters.rest_framework.DjangoFilterBackend',
-        'rest_framework.filters.SearchFilter',
-        'rest_framework.filters.OrderingFilter',
+        DjangoFilterBackend,
+        SearchFilter,
+        OrderingFilter,
     ]
     search_fields = ['title', 'description']
     ordering_fields = ['price', 'title', 'rating']
@@ -106,6 +110,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         return response
 
 
+class EmptySerializer(serializers.Serializer):
+    pass
+
+@extend_schema(tags=['cart'])
 class CartViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -113,11 +121,26 @@ class CartViewSet(viewsets.ViewSet):
         cart, created = Cart.objects.get_or_create(user=request.user)
         return cart
 
+    @extend_schema(
+        responses=CartSerializer,
+        description="Получить корзину пользователя"
+    )
     def list(self, request):
         cart = self.get_cart(request)
         serializer = CartSerializer(cart)
         return Response(serializer.data)
 
+    @extend_schema(
+        request=inline_serializer(
+            name='AddCartItemRequest',   # ← УНИКАЛЬНОЕ ИМЯ
+            fields={
+                'product_id': serializers.IntegerField(),
+                'quantity': serializers.IntegerField(required=False, default=1),
+            }
+        ),
+        responses=CartSerializer,
+        description="Добавить товар в корзину"
+    )
     @action(detail=False, methods=['post'], url_path='items')
     def add_item(self, request):
         product_id = request.data.get('product_id')
@@ -126,16 +149,11 @@ class CartViewSet(viewsets.ViewSet):
         try:
             product = Product.objects.get(id=product_id)
         except Product.DoesNotExist:
-            return Response(
-                {'error': 'Товар не найден'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'error': 'Товар не найден'}, status=status.HTTP_404_NOT_FOUND)
 
         cart = self.get_cart(request)
         cart_item, created = CartItem.objects.get_or_create(
-            cart=cart,
-            product=product,
-            defaults={'quantity': quantity}
+            cart=cart, product=product, defaults={'quantity': quantity}
         )
 
         if not created:
@@ -145,17 +163,23 @@ class CartViewSet(viewsets.ViewSet):
         serializer = CartSerializer(cart)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        request=inline_serializer(
+            name='UpdateCartItemRequest',   # ← УНИКАЛЬНОЕ ИМЯ
+            fields={
+                'quantity': serializers.IntegerField(),
+            }
+        ),
+        responses=CartSerializer,
+        description="Изменить количество товара в корзине"
+    )
     @action(detail=False, methods=['patch'], url_path='items/(?P<item_id>[^/.]+)')
     def update_item(self, request, item_id=None):
         cart = self.get_cart(request)
-        
         try:
             item = CartItem.objects.get(id=item_id, cart=cart)
         except CartItem.DoesNotExist:
-            return Response(
-                {'error': 'Позиция не найдена'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'error': 'Позиция не найдена'}, status=status.HTTP_404_NOT_FOUND)
 
         quantity = request.data.get('quantity')
         if quantity:
@@ -165,36 +189,37 @@ class CartViewSet(viewsets.ViewSet):
         serializer = CartSerializer(cart)
         return Response(serializer.data)
 
+    @extend_schema(
+        responses=CartSerializer,
+        description="Удалить товар из корзины"
+    )
     @action(detail=False, methods=['delete'], url_path='items/(?P<item_id>[^/.]+)')
     def remove_item(self, request, item_id=None):
         cart = self.get_cart(request)
-        
         try:
             item = CartItem.objects.get(id=item_id, cart=cart)
             item.delete()
         except CartItem.DoesNotExist:
-            return Response(
-                {'error': 'Позиция не найдена'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'error': 'Позиция не найдена'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = CartSerializer(cart)
         return Response(serializer.data)
 
+    @extend_schema(
+        request=ApplyPromoSerializer,   # ← Используем готовый сериализатор
+        responses={200: OpenApiTypes.OBJECT},
+        description="Применить промокод к корзине"
+    )
     @action(detail=False, methods=['post'], url_path='apply-promo')
     def apply_promo(self, request):
         serializer = ApplyPromoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         code = serializer.validated_data['code']
-        
         try:
             promo = PromoCode.objects.get(code=code, is_active=True)
         except PromoCode.DoesNotExist:
-            return Response(
-                {'error': 'Промокод недействителен'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': 'Промокод недействителен'}, status=status.HTTP_400_BAD_REQUEST)
 
         cart = self.get_cart(request)
         discount = cart.total_price * promo.discount_percentage / 100
