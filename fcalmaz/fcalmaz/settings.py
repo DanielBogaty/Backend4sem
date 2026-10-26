@@ -170,23 +170,23 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-# STORAGES = {
-#     "default": {
-#         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-#     },
-#     "staticfiles": {
-#         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
-#     },
-# }
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
 
-DEFAULT_TEAM_IMAGE = MEDIA_URL + 'team_photo/main-ico.png'
-DEFAULT_OPPONENT_IMAGE = MEDIA_URL + 'team_photo/default.png'
-DEFAULT_USER_IMAGE = MEDIA_URL + 'user_photo/default-avatar.png'
+DEFAULT_TEAM_IMAGE = 'https://res.cloudinary.com/mucraqdm/image/upload/v1/team_photo/main-ico.png'
+DEFAULT_OPPONENT_IMAGE = 'https://res.cloudinary.com/mucraqdm/image/upload/v1/team_photo/default.png'
+DEFAULT_USER_IMAGE = 'https://res.cloudinary.com/mucraqdm/image/upload/v1/user_photo/default-avatar.png'
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -272,7 +272,6 @@ cloudinary.config(
     api_key=os.environ.get('CLOUDINARY_API_KEY'),
     api_secret=os.environ.get('CLOUDINARY_API_SECRET')
 )
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 
 SPECTACULAR_SETTINGS = {
@@ -295,5 +294,8 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
 ]
 
-from rest_framework.settings import api_settings
-api_settings.reload()
+from django.core.files.storage import storages
+try:
+    storages._storages = {}
+except:
+    pass
