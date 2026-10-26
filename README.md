@@ -1,6 +1,15 @@
 # FC Almaz - Запуск проекта
+Воссоздай локальное виртуальное окружение (для IDE)
+python -m venv djvenv
+.\djvenv\Scripts\Activate.ps1
+cd fcalmaz
+pip install -r requirements.txt
 
-1. Запуск контейнеров
+Создай пустые служебные папки
+New-Item -ItemType Directory -Force -Path .\logs
+New-Item -ItemType Directory -Force -Path .\media
+
+1. Запуск контейнеров   
 docker compose up -d --build
 
 2. Применение миграций базы данных
@@ -26,3 +35,25 @@ docker compose down
 
 Полный сброс проекта (с удалением томов базы данных и Redis):
 docker compose down -v
+
+
+API Endpoints
+Аутентификация
+POST /api/auth/register — Регистрация пользователя
+POST /api/auth/login — Логин и получение JWT токена
+
+Товары
+GET /api/products — Каталог товаров (поиск, фильтрация, сортировка, пагинация)
+GET /api/products/:id — Детальная информация о товаре
+POST /api/products — Создание товара (только admin)
+DELETE /api/products/:id — Удаление товара (только admin)
+
+Корзина
+GET /api/cart — Получить корзину пользователя
+POST /api/cart/items — Добавить товар в корзину
+PATCH /api/cart/items/:id — Изменить количество товара
+DELETE /api/cart/items/:id — Удалить товар из корзины
+POST /api/cart/apply-promo — Применить промокод
+
+Администрирование
+/admin/ — Django Admin панель
