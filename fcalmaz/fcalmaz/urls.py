@@ -23,7 +23,7 @@ urlpatterns = [
     path('forum/', include('forum.urls', namespace='forum')),
     path('social-auth/', include('social_django.urls', namespace="social")),
     path('captcha/', include('captcha.urls')),
-    path('sitemap.xml', cache_page(86400)(sitemap), {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap')
+    path('sitemap.xml', cache_page(86400)(sitemap), {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     path('api/', include('shop.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/schema/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
