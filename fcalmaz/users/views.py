@@ -5,6 +5,12 @@ from django.views.generic import CreateView, UpdateView
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 
+from rest_framework import status, permissions
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from .serializers import RegisterSerializer, LoginSerializer
+
 from .forms import LoginUserForm, RegisterUserForm, ProfileUserForm, UserPasswordChangeForm
 import fcalmaz.settings as settings
 from forum.models import Post
@@ -48,3 +54,64 @@ class UserPasswordChange(PasswordChangeView):
     form_class = UserPasswordChangeForm
     template_name = 'users/password_change_form.html'
     success_url = reverse_lazy('users:password_change_done')
+
+
+User = get_user_model()
+
+
+class RegisterView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'role': user.role
+            },
+            'refresh': str(refresh),
+            'access': str(refresh.access_token)
+        }, status=status.HTTP_201_CREATED)
+
+
+class LoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Неверные учетные данные'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        if not user.check_password(password):
+            return Response(
+                {'error': 'Неверные учетные данные'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'role': user.role
+            },
+            'refresh': str(refresh),
+            'access': str(refresh.access_token)
+        })
