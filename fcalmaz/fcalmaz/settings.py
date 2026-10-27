@@ -259,7 +259,16 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:80',
+    'http://localhost:8000',
+    'http://127.0.0.1:80',
+    'http://127.0.0.1:8000',
+    'http://mysite.by:8000',
+    'https://mysite.by:8000',
+    'http://mysite.by',
+    'https://mysite.by',
+]
 CORS_ALLOW_CREDENTIALS = True
 
 CLOUDINARY_STORAGE = {
