@@ -1,22 +1,25 @@
 from django.shortcuts import render
 from django.urls import reverse_lazy
-from django.contrib.auth.views import LoginView, PasswordChangeView
+from django.contrib.auth.views import LoginView as DjangoLoginView, PasswordChangeView
 from django.views.generic import CreateView, UpdateView
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 
+from rest_framework.generics import GenericAPIView
 from rest_framework import status, permissions
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema, OpenApiTypes
 from .serializers import RegisterSerializer, LoginSerializer
+from django.contrib.auth import get_user_model
+
 
 from .forms import LoginUserForm, RegisterUserForm, ProfileUserForm, UserPasswordChangeForm
-import fcalmaz.settings as settings
+from django.conf import settings
 from forum.models import Post
 
 
-class LoginUser(LoginView):
+class LoginUser(DjangoLoginView):
     form_class = LoginUserForm
     template_name = 'users/login.html'
     extra_context = {'title': 'Авторизация'}
@@ -59,11 +62,16 @@ class UserPasswordChange(PasswordChangeView):
 User = get_user_model()
 
 
-class RegisterView(APIView):
+class RegisterView(GenericAPIView):
+    serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=RegisterSerializer,
+        responses={201: OpenApiTypes.OBJECT}
+    )
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         
@@ -80,11 +88,16 @@ class RegisterView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-class LoginView(APIView):
+class LoginView(GenericAPIView):
+    serializer_class = LoginSerializer
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=LoginSerializer,
+        responses={200: OpenApiTypes.OBJECT}
+    )
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
         email = serializer.validated_data['email']

@@ -15,6 +15,7 @@ from os import environ
 from pathlib import Path
 from datetime import timedelta
 import cloudinary
+from rest_framework.pagination import PageNumberPagination
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -64,6 +65,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -168,14 +170,23 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
 
-DEFAULT_TEAM_IMAGE = MEDIA_URL + 'team_photo/main-ico.png'
-DEFAULT_OPPONENT_IMAGE = MEDIA_URL + 'team_photo/default.png'
-DEFAULT_USER_IMAGE = MEDIA_URL + 'user_photo/default-avatar.png'
+DEFAULT_TEAM_IMAGE = 'https://res.cloudinary.com/mucraqdm/image/upload/v1/team_photo/main-ico.png'
+DEFAULT_OPPONENT_IMAGE = 'https://res.cloudinary.com/mucraqdm/image/upload/v1/team_photo/default.png'
+DEFAULT_USER_IMAGE = 'https://res.cloudinary.com/mucraqdm/image/upload/v1/user_photo/default-avatar.png'
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -230,12 +241,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    'DEFAULT_FILTER_BACKENDS': (
+    'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
-    ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    ],
+    'DEFAULT_PAGINATION_CLASS': PageNumberPagination, 
     'PAGE_SIZE': 12,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
@@ -261,14 +272,20 @@ cloudinary.config(
     api_key=os.environ.get('CLOUDINARY_API_KEY'),
     api_secret=os.environ.get('CLOUDINARY_API_SECRET')
 )
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Backend4sem API',
-    'DESCRIPTION': 'REST API для интернет-магазина',
+    'DESCRIPTION': 'REST API для интернет-магазина футбольного клуба',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'TAGS': [
+        {'name': 'auth', 'description': 'Authentication endpoints'},
+        {'name': 'shop', 'description': 'Shop and Cart endpoints'},
+    ],
+    'ENUM_NAME_OVERRIDES': {},
+    'POSTPROCESSING_HOOKS': [],
 }
 
 PASSWORD_HASHERS = [
@@ -276,3 +293,9 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
 ]
+
+from django.core.files.storage import storages
+try:
+    storages._storages = {}
+except:
+    pass
