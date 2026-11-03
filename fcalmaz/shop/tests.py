@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -11,6 +12,7 @@ class ProductCatalogTests(TestCase):
     """Тесты для каталога товаров: фильтрация, сортировка, валидация."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.url = reverse('shop:product-list')
 
@@ -105,6 +107,21 @@ class ProductCatalogTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('images', resp.json())
 
+    def test_image_validation_requires_urls(self):
+        """Каждое изображение должно быть http/https URL."""
+        self.client.force_authenticate(user=self.admin)
+
+        payload = {
+            'title': 'Тестовый товар',
+            'description': 'Описание',
+            'price': 500,
+            'rating': 4.0,
+            'images': ['http://img1.jpg', 'not-a-url', 'http://img3.jpg'],
+        }
+        resp = self.client.post(self.url, payload, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('images', resp.json())
+
     def test_pagination_format(self):
         """Проверяем формат ответа с items и meta."""
         resp = self.client.get(self.url, {'limit': 2})
@@ -117,3 +134,38 @@ class ProductCatalogTests(TestCase):
         self.assertIn('current_page', meta)
         self.assertIn('limit', meta)
         self.assertEqual(meta['limit'], 2)
+
+    def test_search_by_title(self):
+        """Поиск по названию через параметр search."""
+        resp = self.client.get(self.url, {'search': 'Бутсы'})
+        data = resp.json()
+        self.assertEqual(len(data['items']), 1)
+        self.assertEqual(data['items'][0]['title'], 'Бутсы Nike')
+
+    def test_filter_by_min_rating(self):
+        """Фильтрация по min_rating."""
+        resp = self.client.get(self.url, {'min_rating': 4.5})
+        data = resp.json()
+        self.assertEqual(len(data['items']), 2)
+        for item in data['items']:
+            self.assertGreaterEqual(item['rating'], 4.5)
+
+    def test_cache_invalidated_after_update(self):
+        """После изменения товара каталог отдаёт свежие данные, а не кэш."""
+        resp = self.client.get(self.url, {'sort_by': 'price'})
+        self.assertEqual(resp.json()['items'][0]['title'], 'Щитки')
+
+        self.client.force_authenticate(user=self.admin)
+        product = Product.objects.get(title='Щитки')
+        payload = {
+            'title': 'Щитки',
+            'description': 'Защитные щитки',
+            'price': 99999.00,
+            'rating': 3.2,
+            'images': ['http://img1.jpg', 'http://img2.jpg', 'http://img3.jpg'],
+        }
+        patch = self.client.put(f'{self.url}{product.id}/', payload, format='json')
+        self.assertEqual(patch.status_code, status.HTTP_200_OK)
+
+        resp = self.client.get(self.url, {'sort_by': 'price'})
+        self.assertEqual(resp.json()['items'][-1]['title'], 'Щитки')
