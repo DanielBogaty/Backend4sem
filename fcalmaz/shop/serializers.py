@@ -8,6 +8,15 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'price', 'rating', 
                   'images', 'stock_quantity', 'created_at']
 
+    def validate_images(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError('Поле images должно быть списком URL')
+        if len(value) < 3:
+            raise serializers.ValidationError(
+                'Минимум 3 изображения для товара'
+            )
+        return value
+
 
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
