@@ -63,6 +63,20 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         return super().filter_queryset(queryset)
 
+    @extend_schema(
+        summary='Список товаров',
+        description='Каталог товаров с пагинацией, фильтрацией и сортировкой.',
+        parameters=[
+            OpenApiParameter(name='search', type=str, description='Поиск по названию/описанию'),
+            OpenApiParameter(name='min_price', type=float, description='Мин. цена'),
+            OpenApiParameter(name='max_price', type=float, description='Макс. цена'),
+            OpenApiParameter(name='min_rating', type=float, description='Мин. рейтинг'),
+            OpenApiParameter(name='sort_by', type=str, description='Поле сортировки (price/title)'),
+            OpenApiParameter(name='order', type=str, description='Порядок (asc/desc)'),
+            OpenApiParameter(name='page', type=int, description='Номер страницы'),
+            OpenApiParameter(name='limit', type=int, description='Элементов на странице'),
+        ],
+    )
     def list(self, request, *args, **kwargs):
         # Кэширование запросов каталога
         cache_key = f"products_{request.GET.urlencode()}"
@@ -109,14 +123,29 @@ class ProductViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    def destroy(self, request, *args, **kwargs):
-        response = super().destroy(request, *args, **kwargs)
+    @extend_schema(
+        summary='Получить товар',
+        description='Детальная информация о товаре по ID.',
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @extend_schema(
+        summary='Создать товар',
+        description='Создание нового товара (только admin).',
+    )
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
         # Инвалидация кэша
         cache.clear()
         return response
 
-    def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
+    @extend_schema(
+        summary='Удалить товар',
+        description='Удаление товара по ID (только admin).',
+    )
+    def destroy(self, request, *args, **kwargs):
+        response = super().destroy(request, *args, **kwargs)
         # Инвалидация кэша
         cache.clear()
         return response
