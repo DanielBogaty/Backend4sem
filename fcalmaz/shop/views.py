@@ -29,6 +29,13 @@ class IsCustomerUser(permissions.BasePermission):
         return request.user and request.user.role == 'customer'
 
 
+CATALOG_VERSION_KEY = 'products_version'
+
+
+def invalidate_catalog_cache():
+    cache.set(CATALOG_VERSION_KEY, cache.get(CATALOG_VERSION_KEY, 0) + 1, timeout=None)
+
+
 class ProductPagination(PageNumberPagination):
     page_size = 12
     page_size_query_param = 'limit'
@@ -80,7 +87,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     )
     def list(self, request, *args, **kwargs):
         # Кэширование запросов каталога
-        cache_key = f"products_{request.GET.urlencode()}"
+        version = cache.get(CATALOG_VERSION_KEY, 0)
+        cache_key = f"products_v{version}_{request.GET.urlencode()}"
         cached_data = cache.get(cache_key)
         
         if cached_data:
@@ -137,8 +145,12 @@ class ProductViewSet(viewsets.ModelViewSet):
     )
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        # Инвалидация кэша
-        cache.clear()
+        invalidate_catalog_cache()
+        return response
+
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        invalidate_catalog_cache()
         return response
 
     @extend_schema(
@@ -147,8 +159,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     )
     def destroy(self, request, *args, **kwargs):
         response = super().destroy(request, *args, **kwargs)
-        # Инвалидация кэша
-        cache.clear()
+        invalidate_catalog_cache()
         return response
 
 
