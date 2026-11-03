@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.core.cache import cache
 from django.db.models import Q
+from django.views.generic import TemplateView
 from drf_spectacular.utils import extend_schema, OpenApiTypes, OpenApiParameter, OpenApiExample
 from drf_spectacular.utils import inline_serializer
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -273,3 +274,9 @@ class CartViewSet(viewsets.ViewSet):
             'discount_amount': discount,
             'final_price': final_price
         })
+
+
+class CatalogPageView(TemplateView):
+    """Страница каталога товаров."""
+    template_name = 'shop/catalog.html'
+    extra_context = {'title': 'Каталог товаров'}
