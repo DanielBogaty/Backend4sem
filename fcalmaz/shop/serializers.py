@@ -12,9 +12,10 @@ class ProductSerializer(serializers.ModelSerializer):
         if not isinstance(value, list):
             raise serializers.ValidationError('Поле images должно быть списком URL')
         if len(value) < 3:
-            raise serializers.ValidationError(
-                'Минимум 3 изображения для товара'
-            )
+            raise serializers.ValidationError('Минимум 3 изображения для товара')
+        for url in value:
+            if not isinstance(url, str) or not url.startswith(('http://', 'https://')):
+                raise serializers.ValidationError('Каждое изображение должно быть URL (http/https)')
         return value
 
 
