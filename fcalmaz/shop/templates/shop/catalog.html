@@ -112,9 +112,9 @@
         var html = '';
         for (var i = 0; i < items.length; i++) {
             var p = items[i];
-            html += '<div class="product-card">';
-            html += '  <div class="product-slider" data-images="' + encodeURIComponent(JSON.stringify(p.images)) + '">';
-            html += '    <img src="' + p.images[0] + '" alt="' + p.title + '" class="slider-image" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22260%22 height=%22200%22><rect fill=%22%23ddd%22 width=%22260%22 height=%22200%22/><text x=%22130%22 y=%22110%22 text-anchor=%22middle%22 fill=%22%23999%22>Нет фото</text></svg>\'">';
+            html += '<div class="product-card" id="prod-' + p.id + '">';
+            html += '  <div class="product-slider">';
+            html += '    <img src="' + p.images[0] + '" alt="" class="slider-image">';
             html += '    <div class="slider-nav">';
             html += '      <button class="slider-prev">◀</button>';
             html += '      <span class="slider-counter">1/' + p.images.length + '</span>';
@@ -135,7 +135,13 @@
 
         grid.innerHTML = html;
 
-        // включаем слайдеры
+        // привязываем картинки и включаем слайдеры
+        for (var i = 0; i < items.length; i++) {
+            var card = document.getElementById('prod-' + items[i].id);
+            if (card) {
+                card._images = items[i].images;
+            }
+        }
         initSliders();
     }
 
@@ -153,7 +159,8 @@
     }
 
     function setupSlider(container) {
-        var images = JSON.parse(decodeURIComponent(container.getAttribute('data-images')));
+        var card = container.parentNode;
+        var images = card._images || [];
         var current = 0;
         var img = container.querySelector('.slider-image');
         var counter = container.querySelector('.slider-counter');
