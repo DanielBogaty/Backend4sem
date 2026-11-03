@@ -114,7 +114,7 @@
             var p = items[i];
             html += '<div class="product-card" id="prod-' + p.id + '">';
             html += '  <div class="product-slider">';
-            html += '    <img src="' + p.images[0] + '" alt="" class="slider-image">';
+            html += '    <img alt="" class="slider-image">';
             html += '    <div class="slider-nav">';
             html += '      <button class="slider-prev">◀</button>';
             html += '      <span class="slider-counter">1/' + p.images.length + '</span>';
@@ -166,6 +166,8 @@
         var counter = container.querySelector('.slider-counter');
         var prevBtn = container.querySelector('.slider-prev');
         var nextBtn = container.querySelector('.slider-next');
+
+        img.src = images[0];
 
         function show(idx) {
             current = idx;
