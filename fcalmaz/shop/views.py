@@ -82,7 +82,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             response_data = {
                 'items': serializer.data,
                 'meta': {
-                    'total_items': queryset.count(),
+                    'total_items': self.paginator.page.paginator.count,
                     'total_pages': self.paginator.page.paginator.num_pages,
                     'current_page': self.paginator.page.number,
                     'limit': self.paginator.get_page_size(request),
@@ -92,7 +92,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             # Сохраняем в кэш
             cache.set(cache_key, response_data, timeout=120)
             
-            return self.get_paginated_response(response_data)
+            return Response(response_data)
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
