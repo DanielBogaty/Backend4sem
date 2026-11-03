@@ -51,6 +51,18 @@ class ProductViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated(), IsAdminUser()]
         return [permissions.AllowAny()]
 
+    def filter_queryset(self, queryset):
+        # кастомная сортировка через sort_by и order
+        sort_by = self.request.query_params.get('sort_by')
+        order = self.request.query_params.get('order', 'asc')
+
+        if sort_by in ['price', 'title']:
+            if order == 'desc':
+                sort_by = '-' + sort_by
+            queryset = queryset.order_by(sort_by)
+
+        return super().filter_queryset(queryset)
+
     def list(self, request, *args, **kwargs):
         # Кэширование запросов каталога
         cache_key = f"products_{request.GET.urlencode()}"
