@@ -1,0 +1,420 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<!-- панель фильтров -->
+<div class="catalog-filters">
+    <div class="filter-group">
+        <label>Поиск:</label>
+        <input type="text" id="searchInput" class="form-input" placeholder="Название или описание...">
+    </div>
+
+    <div class="filter-row">
+        <div class="filter-group">
+            <label>Цена от:</label>
+            <input type="number" id="minPrice" class="form-input" min="0" step="1" placeholder="0">
+        </div>
+        <div class="filter-group">
+            <label>Цена до:</label>
+            <input type="number" id="maxPrice" class="form-input" min="0" step="1" placeholder="100000">
+        </div>
+        <div class="filter-group">
+            <label>Рейтинг от:</label>
+            <input type="number" id="minRating" class="form-input" min="0" max="5" step="0.1" placeholder="0">
+        </div>
+    </div>
+
+    <div class="filter-row">
+        <div class="filter-group">
+            <label>Сортировать по:</label>
+            <select id="sortBy" class="form-input">
+                <option value="">-- по умолчанию --</option>
+                <option value="price">Цене</option>
+                <option value="title">Названию</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Порядок:</label>
+            <select id="sortOrder" class="form-input">
+                <option value="asc">По возрастанию</option>
+                <option value="desc">По убыванию</option>
+            </select>
+        </div>
+        <button id="applyFilters" class="btn">Применить</button>
+        <button id="resetFilters" class="btn btn-delete">Сбросить</button>
+    </div>
+</div>
+
+<!-- сетка товаров -->
+<div id="productsGrid" class="products-grid">
+    <p style="text-align: center; color: #888;">Загрузка...</p>
+</div>
+
+<!-- пагинация -->
+<div id="pagination" class="list-pages"></div>
+
+<script>
+(function () {
+    var apiUrl = '/api/products';
+
+    // текущее состояние фильтров
+    var filters = {
+        search: '',
+        min_price: '',
+        max_price: '',
+        min_rating: '',
+        sort_by: '',
+        order: 'asc',
+        page: 1,
+        limit: 12
+    };
+
+    // DOM элементы
+    var grid = document.getElementById('productsGrid');
+    var pagination = document.getElementById('pagination');
+
+    function buildUrl() {
+        var params = [];
+        if (filters.search) params.push('search=' + encodeURIComponent(filters.search));
+        if (filters.min_price) params.push('min_price=' + filters.min_price);
+        if (filters.max_price) params.push('max_price=' + filters.max_price);
+        if (filters.min_rating) params.push('min_rating=' + filters.min_rating);
+        if (filters.sort_by) params.push('sort_by=' + filters.sort_by);
+        params.push('order=' + filters.order);
+        params.push('page=' + filters.page);
+        params.push('limit=' + filters.limit);
+
+        return apiUrl + '?' + params.join('&');
+    }
+
+    function loadProducts() {
+        grid.innerHTML = '<p style="text-align: center;">Загрузка...</p>';
+
+        fetch(buildUrl())
+            .then(function (resp) { return resp.json(); })
+            .then(function (data) {
+                renderProducts(data.items);
+                renderPagination(data.meta);
+            })
+            .catch(function () {
+                grid.innerHTML = '<p style="text-align: center; color: #d90000;">Ошибка загрузки</p>';
+            });
+    }
+
+    function renderProducts(items) {
+        if (!items.length) {
+            grid.innerHTML = '<p style="text-align: center;">Товары не найдены</p>';
+            return;
+        }
+
+        var html = '';
+        for (var i = 0; i < items.length; i++) {
+            var p = items[i];
+            html += '<div class="product-card" id="prod-' + p.id + '">';
+            html += '  <div class="product-slider">';
+            html += '    <img alt="" class="slider-image">';
+            html += '    <div class="slider-nav">';
+            html += '      <button class="slider-prev">◀</button>';
+            html += '      <span class="slider-counter">1/' + p.images.length + '</span>';
+            html += '      <button class="slider-next">▶</button>';
+            html += '    </div>';
+            html += '  </div>';
+            html += '  <div class="product-info">';
+            html += '    <h3>' + escapeHtml(p.title) + '</h3>';
+            html += '    <p class="product-desc">' + escapeHtml(p.description || '') + '</p>';
+            html += '    <div class="product-meta">';
+            html += '      <span class="product-price">' + Number(p.price).toFixed(2) + ' ₽</span>';
+            html += '      <span class="product-rating">★ ' + Number(p.rating).toFixed(1) + '</span>';
+            html += '    </div>';
+            html += '    <span class="product-stock">В наличии: ' + p.stock_quantity + ' шт.</span>';
+            html += '  </div>';
+            html += '</div>';
+        }
+
+        grid.innerHTML = html;
+
+        // привязываем картинки и включаем слайдеры
+        for (var i = 0; i < items.length; i++) {
+            var card = document.getElementById('prod-' + items[i].id);
+            if (card) {
+                card._images = items[i].images;
+            }
+        }
+        initSliders();
+    }
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(text));
+        return div.innerHTML;
+    }
+
+    function initSliders() {
+        var sliders = document.querySelectorAll('.product-slider');
+        for (var i = 0; i < sliders.length; i++) {
+            setupSlider(sliders[i]);
+        }
+    }
+
+    function setupSlider(container) {
+        var card = container.parentNode;
+        var images = card._images || [];
+        var current = 0;
+        var img = container.querySelector('.slider-image');
+        var counter = container.querySelector('.slider-counter');
+        var prevBtn = container.querySelector('.slider-prev');
+        var nextBtn = container.querySelector('.slider-next');
+
+        img.src = images[0];
+
+        function show(idx) {
+            current = idx;
+            img.src = images[current];
+            counter.textContent = (current + 1) + '/' + images.length;
+        }
+
+        prevBtn.addEventListener('click', function () {
+            var newIdx = current === 0 ? images.length - 1 : current - 1;
+            show(newIdx);
+        });
+
+        nextBtn.addEventListener('click', function () {
+            var newIdx = current === images.length - 1 ? 0 : current + 1;
+            show(newIdx);
+        });
+
+        // если картинок < 3 - скрываем стрелки
+        if (images.length < 3) {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+            counter.textContent = '1/' + images.length;
+        }
+    }
+
+    function renderPagination(meta) {
+        if (meta.total_pages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+
+        var html = '<ul>';
+        for (var p = 1; p <= meta.total_pages; p++) {
+            if (p === meta.current_page) {
+                html += '<li><span class="page-num-selected">' + p + '</span></li>';
+            } else {
+                html += '<li><a href="#" class="page-link" data-page="' + p + '">' + p + '</a></li>';
+            }
+        }
+        html += '</ul>';
+        pagination.innerHTML = html;
+
+        // обработчики кликов
+        var links = pagination.querySelectorAll('.page-link');
+        for (var j = 0; j < links.length; j++) {
+            links[j].addEventListener('click', function (e) {
+                e.preventDefault();
+                filters.page = parseInt(this.getAttribute('data-page'));
+                loadProducts();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+    }
+
+    function applyFilters() {
+        filters.search = document.getElementById('searchInput').value.trim();
+        filters.min_price = document.getElementById('minPrice').value;
+        filters.max_price = document.getElementById('maxPrice').value;
+        filters.min_rating = document.getElementById('minRating').value;
+        filters.sort_by = document.getElementById('sortBy').value;
+        filters.order = document.getElementById('sortOrder').value;
+        filters.page = 1;
+        loadProducts();
+    }
+
+    function resetFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('minPrice').value = '';
+        document.getElementById('maxPrice').value = '';
+        document.getElementById('minRating').value = '';
+        document.getElementById('sortBy').value = '';
+        document.getElementById('sortOrder').value = 'asc';
+
+        filters = {
+            search: '',
+            min_price: '',
+            max_price: '',
+            min_rating: '',
+            sort_by: '',
+            order: 'asc',
+            page: 1,
+            limit: 12
+        };
+        loadProducts();
+    }
+
+    // биндим события
+    document.getElementById('applyFilters').addEventListener('click', applyFilters);
+    document.getElementById('resetFilters').addEventListener('click', resetFilters);
+
+    // поиск по Enter
+    document.getElementById('searchInput').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') applyFilters();
+    });
+
+    // грузим товары при загрузке страницы
+    loadProducts();
+})();
+</script>
+
+<style>
+/* стили каталога */
+.catalog-filters {
+    background: #fff;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.filter-group {
+    margin-bottom: 10px;
+}
+
+.filter-group label {
+    display: inline-block;
+    min-width: 100px;
+    font-weight: bold;
+    color: #555;
+}
+
+.filter-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-top: 10px;
+}
+
+.products-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+}
+
+.product-card {
+    width: calc(33.333% - 20px);
+    min-width: 260px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+
+.product-card:hover {
+    transform: scale(1.02);
+}
+
+.product-slider {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    background: #f0f0f0;
+    overflow: hidden;
+}
+
+.slider-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.slider-nav {
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 8px;
+}
+
+.slider-prev,
+.slider-next {
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.slider-prev:hover,
+.slider-next:hover {
+    background: rgba(0, 0, 0, 0.75);
+}
+
+.slider-counter {
+    color: #fff;
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.product-info {
+    padding: 12px 15px;
+}
+
+.product-info h3 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.product-desc {
+    font-size: 13px;
+    color: #777;
+    margin: 0 0 10px 0;
+}
+
+.product-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.product-price {
+    font-size: 18px;
+    font-weight: bold;
+    color: #0074d9;
+}
+
+.product-rating {
+    color: #f5a623;
+    font-weight: bold;
+}
+
+.product-stock {
+    font-size: 12px;
+    color: #888;
+}
+
+@media (max-width: 768px) {
+    .product-card {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
