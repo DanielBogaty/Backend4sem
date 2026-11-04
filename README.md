@@ -53,8 +53,6 @@ docker compose up -d --build
 docker compose exec fcalmaz python manage.py migrate
 # 3. Создание суперпользователя (администратора)
 docker compose exec fcalmaz python manage.py createsuperuser
-# 4. Сборка статических файлов для Nginx и WhiteNoise
-docker compose exec fcalmaz python manage.py collectstatic --noinput
 # (Опционально) Загрузи начальные данные, если есть db.json
 docker compose exec fcalmaz python manage.py loaddata db.json
 
