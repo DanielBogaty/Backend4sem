@@ -13,6 +13,9 @@ urlpatterns = [
         'get': 'list',
         'post': 'add_item'
     }), name='cart-list'),
+    path('cart/items/', views.CartViewSet.as_view({
+        'post': 'add_item'
+    }), name='cart-items'),
     path('cart/items/<int:item_id>/', views.CartViewSet.as_view({
         'patch': 'update_item',
         'delete': 'remove_item'
