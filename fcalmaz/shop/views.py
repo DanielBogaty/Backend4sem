@@ -388,3 +388,8 @@ class CatalogPageView(TemplateView):
     """Страница каталога товаров."""
     template_name = 'shop/catalog.html'
     extra_context = {'title': 'Каталог товаров'}
+
+class CartPageView(TemplateView):
+    """Страница корзины покупок."""
+    template_name = 'shop/cart.html'
+    extra_context = {'title': 'Корзина'}

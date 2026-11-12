@@ -1,0 +1,416 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<div id="cartAlert" class="cart-alert" style="display: none;"></div>
+
+<!-- блок входа, если пользователь не авторизован -->
+<div id="cartAuthBox" class="cart-card" style="display: none;">
+    <h3>Требуется авторизация</h3>
+    <p>Войдите в свой аккаунт, чтобы просматривать и редактировать корзину.</p>
+    <div class="auth-inline-form">
+        <input type="email" id="quickLoginEmail" class="form-input" placeholder="Email">
+        <input type="password" id="quickLoginPass" class="form-input" placeholder="Пароль">
+        <button type="button" id="quickLoginBtn" class="btn">Войти</button>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px; color: #666;">
+        Или перейдите на <a href="{% url 'users:login' %}">обычную страницу входа</a>.
+    </p>
+</div>
+
+<!-- основной контейнер корзины -->
+<div id="cartContainer" style="display: none;">
+    <div id="cartEmpty" class="cart-card" style="display: none; text-align: center; padding: 30px;">
+        <p style="font-size: 16px; color: #666; margin-bottom: 15px;">Ваша корзина пока пуста.</p>
+        <a href="{% url 'catalog' %}" class="btn">Перейти в каталог</a>
+    </div>
+
+    <div id="cartContent" style="display: none;">
+        <div class="cart-card">
+            <table class="cart-table">
+                <thead>
+                    <tr>
+                        <th>Товар</th>
+                        <th>Цена</th>
+                        <th>Количество</th>
+                        <th>Сумма</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="cartItemsBody"></tbody>
+            </table>
+        </div>
+
+        <div class="cart-summary-row">
+            <!-- блок промокода -->
+            <div class="cart-card promo-box">
+                <h3>Промокод</h3>
+                <div class="promo-form">
+                    <input type="text" id="promoInput" class="form-input" placeholder="Например, SAVE10">
+                    <button type="button" id="applyPromoBtn" class="btn">Применить</button>
+                </div>
+                <p id="promoStatus" class="promo-status"></p>
+            </div>
+
+            <!-- блок итоговой стоимости -->
+            <div class="cart-card total-box">
+                <h3>Итого</h3>
+                <div class="total-line">
+                    <span>Сумма товаров:</span>
+                    <span id="originalPrice">0.00 ₽</span>
+                </div>
+                <div class="total-line" id="discountRow" style="display: none; color: #28a745;">
+                    <span>Скидка (<span id="discountPercent">0</span>%):</span>
+                    <span>-<span id="discountAmount">0.00</span> ₽</span>
+                </div>
+                <div class="total-line total-final">
+                    <span>К оплате:</span>
+                    <span id="finalPrice">0.00 ₽</span>
+                </div>
+                <a href="{% url 'catalog' %}" class="btn" style="display: inline-block; margin-top: 15px;">Продолжить покупки</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var alertBox = document.getElementById('cartAlert');
+    var authBox = document.getElementById('cartAuthBox');
+    var cartContainer = document.getElementById('cartContainer');
+    var cartEmpty = document.getElementById('cartEmpty');
+    var cartContent = document.getElementById('cartContent');
+    var itemsBody = document.getElementById('cartItemsBody');
+
+    var promoInput = document.getElementById('promoInput');
+    var promoStatus = document.getElementById('promoStatus');
+    var activePromoCode = null;
+
+    function showAlert(msg, isError) {
+        alertBox.textContent = msg;
+        alertBox.className = 'cart-alert ' + (isError ? 'cart-alert-error' : 'cart-alert-success');
+        alertBox.style.display = 'block';
+        setTimeout(function () {
+            alertBox.style.display = 'none';
+        }, 4000);
+    }
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(text || ''));
+        return div.innerHTML;
+    }
+
+    function loadCart() {
+        if (!window.CartAPI || !CartAPI.getAccessToken()) {
+            authBox.style.display = 'block';
+            cartContainer.style.display = 'none';
+            return;
+        }
+
+        authBox.style.display = 'none';
+        cartContainer.style.display = 'block';
+
+        CartAPI.getCart()
+            .then(function (cart) {
+                renderCart(cart);
+                if (activePromoCode && cart.items && cart.items.length > 0) {
+                    recalculatePromo(activePromoCode, true);
+                }
+            })
+            .catch(function (err) {
+                if (err.status === 401) {
+                    CartAPI.clearTokens();
+                    authBox.style.display = 'block';
+                    cartContainer.style.display = 'none';
+                } else {
+                    showAlert(err.message || 'Ошибка загрузки корзины', true);
+                }
+            });
+    }
+
+    function renderCart(cart) {
+        CartAPI.updateHeaderBadge(cart);
+
+        if (!cart.items || cart.items.length === 0) {
+            cartEmpty.style.display = 'block';
+            cartContent.style.display = 'none';
+            activePromoCode = null;
+            return;
+        }
+
+        cartEmpty.style.display = 'none';
+        cartContent.style.display = 'block';
+
+        var html = '';
+        for (var i = 0; i < cart.items.length; i++) {
+            var item = cart.items[i];
+            var prod = item.product || {};
+            var imgUrl = (prod.images && prod.images.length) ? prod.images[0] : '';
+
+            html += '<tr data-item-id="' + item.id + '">';
+            html += '  <td class="cart-prod-cell">';
+            if (imgUrl) {
+                html += '    <img src="' + escapeHtml(imgUrl) + '" alt="" class="cart-thumb">';
+            }
+            html += '    <div>';
+            html += '      <strong>' + escapeHtml(prod.title) + '</strong><br>';
+            html += '      <small style="color: #888;">На складе: ' + (prod.stock_quantity || 0) + ' шт.</small>';
+            html += '    </div>';
+            html += '  </td>';
+            html += '  <td>' + Number(prod.price || 0).toFixed(2) + ' ₽</td>';
+            html += '  <td>';
+            html += '    <div class="qty-control">';
+            html += '      <button type="button" class="qty-btn qty-minus" data-id="' + item.id + '" data-qty="' + (item.quantity - 1) + '">−</button>';
+            html += '      <span class="qty-val">' + item.quantity + '</span>';
+            html += '      <button type="button" class="qty-btn qty-plus" data-id="' + item.id + '" data-qty="' + (item.quantity + 1) + '">+</button>';
+            html += '    </div>';
+            html += '  </td>';
+            html += '  <td><strong>' + Number(item.subtotal || 0).toFixed(2) + ' ₽</strong></td>';
+            html += '  <td>';
+            html += '    <button type="button" class="btn btn-delete remove-item-btn" data-id="' + item.id + '">Удалить</button>';
+            html += '  </td>';
+            html += '</tr>';
+        }
+        itemsBody.innerHTML = html;
+
+        var total = Number(cart.total_price || 0).toFixed(2);
+        document.getElementById('originalPrice').textContent = total + ' ₽';
+        document.getElementById('finalPrice').textContent = total + ' ₽';
+        document.getElementById('discountRow').style.display = 'none';
+
+        bindRowEvents();
+    }
+
+    function bindRowEvents() {
+        var qtyButtons = itemsBody.querySelectorAll('.qty-btn');
+        for (var i = 0; i < qtyButtons.length; i++) {
+            qtyButtons[i].addEventListener('click', function () {
+                var itemId = this.getAttribute('data-id');
+                var newQty = parseInt(this.getAttribute('data-qty'), 10);
+
+                if (newQty <= 0) {
+                    handleRemove(itemId);
+                    return;
+                }
+
+                CartAPI.updateCartItem(itemId, newQty)
+                    .then(function (updatedCart) {
+                        renderCart(updatedCart);
+                        if (activePromoCode && updatedCart.items.length > 0) {
+                            recalculatePromo(activePromoCode, true);
+                        }
+                    })
+                    .catch(function (err) {
+                        showAlert(err.message || 'Не удалось изменить количество', true);
+                    });
+            });
+        }
+
+        var delButtons = itemsBody.querySelectorAll('.remove-item-btn');
+        for (var j = 0; j < delButtons.length; j++) {
+            delButtons[j].addEventListener('click', function () {
+                handleRemove(this.getAttribute('data-id'));
+            });
+        }
+    }
+
+    function handleRemove(itemId) {
+        CartAPI.removeCartItem(itemId)
+            .then(function (updatedCart) {
+                renderCart(updatedCart);
+                showAlert('Позиция удалена из корзины', false);
+                if (activePromoCode && updatedCart.items.length > 0) {
+                    recalculatePromo(activePromoCode, true);
+                }
+            })
+            .catch(function (err) {
+                showAlert(err.message || 'Ошибка при удалении', true);
+            });
+    }
+
+    function recalculatePromo(code, silent) {
+        CartAPI.applyPromoCode(code)
+            .then(function (promoData) {
+                activePromoCode = promoData.promo_code;
+                document.getElementById('originalPrice').textContent = promoData.original_price + ' ₽';
+                document.getElementById('discountPercent').textContent = promoData.discount_percentage;
+                document.getElementById('discountAmount').textContent = promoData.discount_amount;
+                document.getElementById('finalPrice').textContent = promoData.final_price + ' ₽';
+                document.getElementById('discountRow').style.display = 'flex';
+
+                promoStatus.textContent = 'Промокод ' + promoData.promo_code + ' применён (-' + promoData.discount_percentage + '%)';
+                promoStatus.style.color = '#28a745';
+                if (!silent) {
+                    showAlert('Промокод ' + promoData.promo_code + ' успешно применён!', false);
+                }
+            })
+            .catch(function (err) {
+                activePromoCode = null;
+                document.getElementById('discountRow').style.display = 'none';
+                promoStatus.textContent = err.message || 'Неверный промокод';
+                promoStatus.style.color = '#d90000';
+                if (!silent) {
+                    showAlert(err.message || 'Неверный промокод', true);
+                }
+            });
+    }
+
+    document.getElementById('applyPromoBtn').addEventListener('click', function () {
+        var code = promoInput.value.trim();
+        if (!code) {
+            showAlert('Введите промокод', true);
+            return;
+        }
+        recalculatePromo(code, false);
+    });
+
+    document.getElementById('quickLoginBtn').addEventListener('click', function () {
+        var email = document.getElementById('quickLoginEmail').value.trim();
+        var pass = document.getElementById('quickLoginPass').value;
+        if (!email || !pass) {
+            showAlert('Введите email и пароль', true);
+            return;
+        }
+        CartAPI.loginApi(email, pass)
+            .then(function () {
+                showAlert('Вход выполнен', false);
+                loadCart();
+            })
+            .catch(function (err) {
+                showAlert(err.message || 'Ошибка входа', true);
+            });
+    });
+
+    loadCart();
+})();
+</script>
+
+<style>
+.cart-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cart-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.cart-table th,
+.cart-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #eee;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.cart-prod-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cart-thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #f0f0f0;
+}
+
+.qty-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f5f5f5;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.qty-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.qty-btn:hover {
+    background: #e9e9e9;
+}
+
+.qty-val {
+    min-width: 24px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.cart-summary-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.promo-box,
+.total-box {
+    flex: 1;
+    min-width: 280px;
+}
+
+.promo-form,
+.auth-inline-form {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.promo-status {
+    margin-top: 10px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.total-line {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0;
+    font-size: 15px;
+}
+
+.total-final {
+    border-top: 1px solid #eee;
+    padding-top: 12px;
+    font-size: 19px;
+    font-weight: bold;
+    color: #0074d9;
+}
+
+.cart-alert {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-weight: bold;
+}
+
+.cart-alert-success {
+    background: #e6f7ec;
+    color: #1e7e34;
+    border: 1px solid #b7eb8f;
+}
+
+.cart-alert-error {
+    background: #fff1f0;
+    color: #cf1322;
+    border: 1px solid #ffa39e;
+}
+</style>
+{% endblock %}
