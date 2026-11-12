@@ -8,6 +8,10 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <link rel="shortcut icon" href="{% static 'core/images/main-ico.png' %}" type="image/x-icon" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% if jwt_access_token %}
+        <meta name="jwt-access" content="{{ jwt_access_token }}">
+    {% endif %}
+    <script src="{% static 'shop/js/cart_api.js' %}"></script>
 </head>
 <body>
     <header class="header">
@@ -25,12 +29,14 @@
                 {% block forum %}
                 {% endblock %}
 
+                <li><a href="/cart/">Корзина<span id="cartBadge"></span></a></li>
+
                 {% if user.is_authenticated %}
                     <li class="last">
                         <a href="{% url 'users:profile' %}">{{ user.username }}</a> | 
                         <form id="logoutForm" method="post" action="{% url 'users:logout' %}" style="display: inline;">
                             {% csrf_token %}
-                            <a href="#" onclick="document.getElementById('logoutForm').submit(); return false;">Выйти</a>
+                            <a href="#" onclick="if(window.CartAPI) CartAPI.clearTokens(); document.getElementById('logoutForm').submit(); return false;">Выйти</a>
                         </form>
                     </li>
                 {% else %}
