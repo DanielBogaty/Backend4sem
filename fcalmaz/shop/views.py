@@ -188,8 +188,9 @@ class CartViewSet(viewsets.ViewSet):
         return cart
 
     @extend_schema(
-        responses=CartSerializer,
-        description="Получить корзину пользователя"
+        summary="Получить корзину",
+        description="Возвращает текущую корзину авторизованного пользователя со списком позиций и общей суммой.",
+        responses={200: CartSerializer},
     )
     def list(self, request):
         cart = self.get_cart(request)
@@ -197,17 +198,21 @@ class CartViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     @extend_schema(
+        summary="Добавить товар в корзину",
+        description="Добавляет товар в корзину с проверкой остатков на складе (stock_quantity).",
         request=inline_serializer(
-            name='AddCartItemRequest',   # ← УНИКАЛЬНОЕ ИМЯ
+            name='AddCartItemRequest',
             fields={
                 'product_id': serializers.IntegerField(),
                 'quantity': serializers.IntegerField(required=False, default=1),
             }
         ),
-        responses=CartSerializer,
-        description="Добавить товар в корзину"
+        responses={
+            201: CartSerializer,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
     )
-    @action(detail=False, methods=['post'], url_path='items')
     @action(detail=False, methods=['post'], url_path='items')
     def add_item(self, request):
         product_id = request.data.get('product_id')
@@ -255,14 +260,19 @@ class CartViewSet(viewsets.ViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
+        summary="Изменить количество товара в корзине",
+        description="Обновляет количество позиции в корзине с проверкой остатков и динамическим пересчётом total_price.",
         request=inline_serializer(
-            name='UpdateCartItemRequest',   # ← УНИКАЛЬНОЕ ИМЯ
+            name='UpdateCartItemRequest',
             fields={
                 'quantity': serializers.IntegerField(),
             }
         ),
-        responses=CartSerializer,
-        description="Изменить количество товара в корзине"
+        responses={
+            200: CartSerializer,
+            400: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
     )
     @action(detail=False, methods=['patch'], url_path='items/(?P<item_id>[^/.]+)')
     def update_item(self, request, item_id=None):
@@ -301,8 +311,12 @@ class CartViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     @extend_schema(
-        responses=CartSerializer,
-        description="Удалить товар из корзины"
+        summary="Удалить товар из корзины",
+        description="Удаляет выбранную позицию из корзины и пересчитывает total_price.",
+        responses={
+            200: CartSerializer,
+            404: OpenApiTypes.OBJECT,
+        },
     )
     @action(detail=False, methods=['delete'], url_path='items/(?P<item_id>[^/.]+)')
     def remove_item(self, request, item_id=None):
@@ -318,9 +332,22 @@ class CartViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     @extend_schema(
-        request=ApplyPromoSerializer,   # ← Используем готовый сериализатор
-        responses={200: OpenApiTypes.OBJECT},
-        description="Применить промокод к корзине"
+        summary="Применить промокод к корзине",
+        description="Проверяет активность промокода (например, SAVE10) и рассчитывает итоговую сумму со скидкой.",
+        request=ApplyPromoSerializer,
+        responses={
+            200: inline_serializer(
+                name='ApplyPromoResponse',
+                fields={
+                    'promo_code': serializers.CharField(),
+                    'discount_percentage': serializers.IntegerField(),
+                    'original_price': serializers.CharField(),
+                    'discount_amount': serializers.CharField(),
+                    'final_price': serializers.CharField(),
+                }
+            ),
+            400: OpenApiTypes.OBJECT,
+        },
     )
     @action(detail=False, methods=['post'], url_path='apply-promo')
     def apply_promo(self, request):
@@ -329,7 +356,6 @@ class CartViewSet(viewsets.ViewSet):
 
         code = serializer.validated_data['code'].strip().upper()
 
-        # Гарантируем наличие базового промокода SAVE10, если таблица пустая
         PromoCode.objects.get_or_create(
             code='SAVE10',
             defaults={'discount_percentage': 10, 'is_active': True}
@@ -357,7 +383,6 @@ class CartViewSet(viewsets.ViewSet):
             'discount_amount': f"{discount_amount:.2f}",
             'final_price': f"{final_price:.2f}",
         }, status=status.HTTP_200_OK)
-
 
 class CatalogPageView(TemplateView):
     """Страница каталога товаров."""
