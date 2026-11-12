@@ -10,6 +10,7 @@ from drf_spectacular.utils import inline_serializer
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 
+from decimal import Decimal, ROUND_HALF_UP
 from .models import Product, Cart, CartItem, PromoCode
 from .serializers import (
     ProductSerializer, CartSerializer, CartItemSerializer,
@@ -326,23 +327,36 @@ class CartViewSet(viewsets.ViewSet):
         serializer = ApplyPromoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        code = serializer.validated_data['code']
+        code = serializer.validated_data['code'].strip().upper()
+
+        # Гарантируем наличие базового промокода SAVE10, если таблица пустая
+        PromoCode.objects.get_or_create(
+            code='SAVE10',
+            defaults={'discount_percentage': 10, 'is_active': True}
+        )
+
         try:
-            promo = PromoCode.objects.get(code=code, is_active=True)
+            promo = PromoCode.objects.get(code__iexact=code, is_active=True)
         except PromoCode.DoesNotExist:
-            return Response({'error': 'Промокод недействителен'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'Промокод не найден или неактивен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         cart = self.get_cart(request)
-        discount = cart.total_price * promo.discount_percentage / 100
-        final_price = cart.total_price - discount
+        original_price = Decimal(cart.total_price).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        discount_amount = (original_price * Decimal(promo.discount_percentage) / Decimal('100')).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
+        final_price = (original_price - discount_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
         return Response({
             'promo_code': promo.code,
             'discount_percentage': promo.discount_percentage,
-            'original_price': cart.total_price,
-            'discount_amount': discount,
-            'final_price': final_price
-        })
+            'original_price': f"{original_price:.2f}",
+            'discount_amount': f"{discount_amount:.2f}",
+            'final_price': f"{final_price:.2f}",
+        }, status=status.HTTP_200_OK)
 
 
 class CatalogPageView(TemplateView):
