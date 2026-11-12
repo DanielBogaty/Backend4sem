@@ -12,19 +12,21 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Product, Cart, CartItem, PromoCode
 from .serializers import (
-    ProductSerializer, CartSerializer, CartItemSerializer, 
+    ProductSerializer, CartSerializer, CartItemSerializer,
     PromoCodeSerializer, ApplyPromoSerializer
 )
 
 
 class IsAdminUser(permissions.BasePermission):
     """Разрешение только для администраторов"""
+
     def has_permission(self, request, view):
         return request.user and request.user.role == 'admin'
 
 
 class IsCustomerUser(permissions.BasePermission):
     """Разрешение только для покупателей"""
+
     def has_permission(self, request, view):
         return request.user and request.user.role == 'customer'
 
@@ -33,7 +35,8 @@ CATALOG_VERSION_KEY = 'products_version'
 
 
 def invalidate_catalog_cache():
-    cache.set(CATALOG_VERSION_KEY, cache.get(CATALOG_VERSION_KEY, 0) + 1, timeout=None)
+    cache.set(CATALOG_VERSION_KEY, cache.get(
+        CATALOG_VERSION_KEY, 0) + 1, timeout=None)
 
 
 class ProductPagination(PageNumberPagination):
@@ -75,14 +78,22 @@ class ProductViewSet(viewsets.ModelViewSet):
         summary='Список товаров',
         description='Каталог товаров с пагинацией, фильтрацией и сортировкой.',
         parameters=[
-            OpenApiParameter(name='search', type=str, description='Поиск по названию/описанию'),
-            OpenApiParameter(name='min_price', type=float, description='Мин. цена'),
-            OpenApiParameter(name='max_price', type=float, description='Макс. цена'),
-            OpenApiParameter(name='min_rating', type=float, description='Мин. рейтинг'),
-            OpenApiParameter(name='sort_by', type=str, description='Поле сортировки (price/title)'),
-            OpenApiParameter(name='order', type=str, description='Порядок (asc/desc)'),
-            OpenApiParameter(name='page', type=int, description='Номер страницы'),
-            OpenApiParameter(name='limit', type=int, description='Элементов на странице'),
+            OpenApiParameter(name='search', type=str,
+                             description='Поиск по названию/описанию'),
+            OpenApiParameter(name='min_price', type=float,
+                             description='Мин. цена'),
+            OpenApiParameter(name='max_price', type=float,
+                             description='Макс. цена'),
+            OpenApiParameter(name='min_rating', type=float,
+                             description='Мин. рейтинг'),
+            OpenApiParameter(name='sort_by', type=str,
+                             description='Поле сортировки (price/title)'),
+            OpenApiParameter(name='order', type=str,
+                             description='Порядок (asc/desc)'),
+            OpenApiParameter(name='page', type=int,
+                             description='Номер страницы'),
+            OpenApiParameter(name='limit', type=int,
+                             description='Элементов на странице'),
         ],
     )
     def list(self, request, *args, **kwargs):
@@ -90,13 +101,13 @@ class ProductViewSet(viewsets.ModelViewSet):
         version = cache.get(CATALOG_VERSION_KEY, 0)
         cache_key = f"products_v{version}_{request.GET.urlencode()}"
         cached_data = cache.get(cache_key)
-        
+
         if cached_data:
             return Response(cached_data)
 
         # Фильтрация
         queryset = self.filter_queryset(self.get_queryset())
-        
+
         # Фильтр по цене
         min_price = request.query_params.get('min_price')
         max_price = request.query_params.get('max_price')
@@ -104,7 +115,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(price__gte=min_price)
         if max_price:
             queryset = queryset.filter(price__lte=max_price)
-        
+
         # Фильтр по рейтингу
         min_rating = request.query_params.get('min_rating')
         if min_rating:
@@ -123,10 +134,10 @@ class ProductViewSet(viewsets.ModelViewSet):
                     'limit': self.paginator.get_page_size(request),
                 }
             }
-            
+
             # Сохраняем в кэш
             cache.set(cache_key, response_data, timeout=120)
-            
+
             return Response(response_data)
 
         serializer = self.get_serializer(queryset, many=True)
@@ -166,6 +177,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 class EmptySerializer(serializers.Serializer):
     pass
 
+
 @extend_schema(tags=['cart'])
 class CartViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -195,9 +207,22 @@ class CartViewSet(viewsets.ViewSet):
         description="Добавить товар в корзину"
     )
     @action(detail=False, methods=['post'], url_path='items')
+    @action(detail=False, methods=['post'], url_path='items')
     def add_item(self, request):
         product_id = request.data.get('product_id')
-        quantity = request.data.get('quantity', 1)
+        try:
+            quantity = int(request.data.get('quantity', 1))
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'Количество должно быть целым числом'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if quantity <= 0:
+            return Response(
+                {'error': 'Количество должно быть больше нуля'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             product = Product.objects.get(id=product_id)
@@ -205,14 +230,26 @@ class CartViewSet(viewsets.ViewSet):
             return Response({'error': 'Товар не найден'}, status=status.HTTP_404_NOT_FOUND)
 
         cart = self.get_cart(request)
-        cart_item, created = CartItem.objects.get_or_create(
-            cart=cart, product=product, defaults={'quantity': quantity}
-        )
+        existing_item = CartItem.objects.filter(
+            cart=cart, product=product).first()
+        current_in_cart = existing_item.quantity if existing_item else 0
 
-        if not created:
-            cart_item.quantity += quantity
-            cart_item.save()
+        if current_in_cart + quantity > product.stock_quantity:
+            return Response(
+                {
+                    'error': f'Недостаточно товара на складе. Доступно: {product.stock_quantity}, в корзине уже: {current_in_cart}'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        if existing_item:
+            existing_item.quantity += quantity
+            existing_item.save()
+        else:
+            CartItem.objects.create(
+                cart=cart, product=product, quantity=quantity)
+
+        cart.refresh_from_db()
         serializer = CartSerializer(cart)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
