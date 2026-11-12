@@ -267,15 +267,35 @@ class CartViewSet(viewsets.ViewSet):
     def update_item(self, request, item_id=None):
         cart = self.get_cart(request)
         try:
-            item = CartItem.objects.get(id=item_id, cart=cart)
+            item = CartItem.objects.select_related(
+                'product').get(id=item_id, cart=cart)
         except CartItem.DoesNotExist:
             return Response({'error': 'Позиция не найдена'}, status=status.HTTP_404_NOT_FOUND)
 
-        quantity = request.data.get('quantity')
-        if quantity:
-            item.quantity = quantity
-            item.save()
+        try:
+            quantity = int(request.data.get('quantity'))
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'Укажите корректное количество'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        if quantity <= 0:
+            return Response(
+                {'error': 'Количество должно быть больше нуля'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if quantity > item.product.stock_quantity:
+            return Response(
+                {'error': f'Превышен остаток на складе (доступно: {item.product.stock_quantity})'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        item.quantity = quantity
+        item.save()
+
+        cart.refresh_from_db()
         serializer = CartSerializer(cart)
         return Response(serializer.data)
 
@@ -292,6 +312,7 @@ class CartViewSet(viewsets.ViewSet):
         except CartItem.DoesNotExist:
             return Response({'error': 'Позиция не найдена'}, status=status.HTTP_404_NOT_FOUND)
 
+        cart.refresh_from_db()
         serializer = CartSerializer(cart)
         return Response(serializer.data)
 
