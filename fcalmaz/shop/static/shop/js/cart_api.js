@@ -1,21 +1,32 @@
 (function (window) {
     'use strict';
 
-    // Базовый URL API (для локальной работы и одного домена — пустая строка;
-    // для отдельного фронтенда на Render можно задать window.FC_ALMAZ_API_BASE = 'https://your-app.onrender.com')
     var API_BASE = (window.FC_ALMAZ_API_BASE || '').replace(/\/$/, '');
 
-    function getAccessToken() {
-        var stored = localStorage.getItem('access_token');
-        if (stored) {
-            return stored;
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
         }
+        return cookieValue;
+    }
+
+    function getAccessToken() {
+        // 1. Всегда берём свежий JWT токен текущего залогиненного пользователя из meta-тега
         var meta = document.querySelector('meta[name="jwt-access"]');
         if (meta && meta.content) {
             localStorage.setItem('access_token', meta.content);
             return meta.content;
         }
-        return null;
+        // 2. Иначе берём из localStorage (если вход был напрямую через /api/auth/login)
+        return localStorage.getItem('access_token');
     }
 
     function setTokens(access, refresh) {
@@ -26,6 +37,11 @@
     function clearTokens() {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+    }
+
+    function isAuthenticated() {
+        var meta = document.querySelector('meta[name="jwt-access"]');
+        return Boolean((meta && meta.content) || localStorage.getItem('access_token'));
     }
 
     function apiRequest(endpoint, options) {
@@ -40,9 +56,15 @@
             headers['Authorization'] = 'Bearer ' + token;
         }
 
+        var csrfToken = getCookie('csrftoken');
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+
         return fetch(API_BASE + endpoint, {
             method: options.method || 'GET',
             headers: headers,
+            credentials: 'same-origin',
             body: options.body ? JSON.stringify(options.body) : undefined
         }).then(function (response) {
             return response.json().catch(function () {
@@ -56,16 +78,6 @@
                 }
                 return data;
             });
-        });
-    }
-
-    function loginApi(email, password) {
-        return apiRequest('/api/auth/login', {
-            method: 'POST',
-            body: { email: email, password: password }
-        }).then(function (data) {
-            setTokens(data.access, data.refresh);
-            return data;
         });
     }
 
@@ -116,9 +128,8 @@
         badge.textContent = totalCount > 0 ? ' (' + totalCount + ')' : '';
     }
 
-    // При загрузке любой страницы подтягиваем актуальный счётчик корзины
     document.addEventListener('DOMContentLoaded', function () {
-        if (getAccessToken()) {
+        if (isAuthenticated()) {
             getCart().then(updateHeaderBadge).catch(function () {});
         }
     });
@@ -126,9 +137,9 @@
     window.CartAPI = {
         API_BASE: API_BASE,
         getAccessToken: getAccessToken,
+        isAuthenticated: isAuthenticated,
         setTokens: setTokens,
         clearTokens: clearTokens,
-        loginApi: loginApi,
         getCart: getCart,
         addToCart: addToCart,
         updateCartItem: updateCartItem,

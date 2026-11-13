@@ -6,22 +6,7 @@
 
 <div id="cartAlert" class="cart-alert" style="display: none;"></div>
 
-<!-- блок входа, если пользователь не авторизован -->
-<div id="cartAuthBox" class="cart-card" style="display: none;">
-    <h3>Требуется авторизация</h3>
-    <p>Войдите в свой аккаунт, чтобы просматривать и редактировать корзину.</p>
-    <div class="auth-inline-form">
-        <input type="email" id="quickLoginEmail" class="form-input" placeholder="Email">
-        <input type="password" id="quickLoginPass" class="form-input" placeholder="Пароль">
-        <button type="button" id="quickLoginBtn" class="btn">Войти</button>
-    </div>
-    <p style="margin-top: 10px; font-size: 13px; color: #666;">
-        Или перейдите на <a href="{% url 'users:login' %}">обычную страницу входа</a>.
-    </p>
-</div>
-
-<!-- основной контейнер корзины -->
-<div id="cartContainer" style="display: none;">
+<div id="cartContainer">
     <div id="cartEmpty" class="cart-card" style="display: none; text-align: center; padding: 30px;">
         <p style="font-size: 16px; color: #666; margin-bottom: 15px;">Ваша корзина пока пуста.</p>
         <a href="{% url 'catalog' %}" class="btn">Перейти в каталог</a>
@@ -44,7 +29,6 @@
         </div>
 
         <div class="cart-summary-row">
-            <!-- блок промокода -->
             <div class="cart-card promo-box">
                 <h3>Промокод</h3>
                 <div class="promo-form">
@@ -54,7 +38,6 @@
                 <p id="promoStatus" class="promo-status"></p>
             </div>
 
-            <!-- блок итоговой стоимости -->
             <div class="cart-card total-box">
                 <h3>Итого</h3>
                 <div class="total-line">
@@ -78,8 +61,6 @@
 <script>
 (function () {
     var alertBox = document.getElementById('cartAlert');
-    var authBox = document.getElementById('cartAuthBox');
-    var cartContainer = document.getElementById('cartContainer');
     var cartEmpty = document.getElementById('cartEmpty');
     var cartContent = document.getElementById('cartContent');
     var itemsBody = document.getElementById('cartItemsBody');
@@ -104,15 +85,6 @@
     }
 
     function loadCart() {
-        if (!window.CartAPI || !CartAPI.getAccessToken()) {
-            authBox.style.display = 'block';
-            cartContainer.style.display = 'none';
-            return;
-        }
-
-        authBox.style.display = 'none';
-        cartContainer.style.display = 'block';
-
         CartAPI.getCart()
             .then(function (cart) {
                 renderCart(cart);
@@ -121,10 +93,8 @@
                 }
             })
             .catch(function (err) {
-                if (err.status === 401) {
-                    CartAPI.clearTokens();
-                    authBox.style.display = 'block';
-                    cartContainer.style.display = 'none';
+                if (err.status === 401 || err.status === 403) {
+                    window.location.href = "{% url 'users:login' %}?next=/cart/";
                 } else {
                     showAlert(err.message || 'Ошибка загрузки корзины', true);
                 }
@@ -267,23 +237,6 @@
         recalculatePromo(code, false);
     });
 
-    document.getElementById('quickLoginBtn').addEventListener('click', function () {
-        var email = document.getElementById('quickLoginEmail').value.trim();
-        var pass = document.getElementById('quickLoginPass').value;
-        if (!email || !pass) {
-            showAlert('Введите email и пароль', true);
-            return;
-        }
-        CartAPI.loginApi(email, pass)
-            .then(function () {
-                showAlert('Вход выполнен', false);
-                loadCart();
-            })
-            .catch(function (err) {
-                showAlert(err.message || 'Ошибка входа', true);
-            });
-    });
-
     loadCart();
 })();
 </script>
@@ -365,8 +318,7 @@
     min-width: 280px;
 }
 
-.promo-form,
-.auth-inline-form {
+.promo-form {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;

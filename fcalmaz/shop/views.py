@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django.core.cache import cache
 from django.db.models import Q
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 from drf_spectacular.utils import extend_schema, OpenApiTypes, OpenApiParameter, OpenApiExample
 from drf_spectacular.utils import inline_serializer
@@ -389,7 +390,7 @@ class CatalogPageView(TemplateView):
     template_name = 'shop/catalog.html'
     extra_context = {'title': 'Каталог товаров'}
 
-class CartPageView(TemplateView):
+class CartPageView(LoginRequiredMixin, TemplateView):
     """Страница корзины покупок."""
     template_name = 'shop/cart.html'
     extra_context = {'title': 'Корзина'}
