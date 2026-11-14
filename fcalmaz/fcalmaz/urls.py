@@ -9,7 +9,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from core.sitemaps import NewsSitemap
 from users.views import RegisterView, LoginView
-
+from shop.views import CatalogPageView, CartPageView
 
 sitemaps = {
     'news': NewsSitemap,
@@ -22,6 +22,8 @@ urlpatterns = [
     path('events/', include('events.urls', namespace='events')),
     path('users/', include('users.urls', namespace='users')),
     path('forum/', include('forum.urls', namespace='forum')),
+    path('catalog/', CatalogPageView.as_view(), name='catalog'),
+    path('cart/', CartPageView.as_view(), name='cart'),
     path('social-auth/', include('social_django.urls', namespace="social")),
     path('captcha/', include('captcha.urls')),
     path('sitemap.xml', cache_page(86400)(sitemap), {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
