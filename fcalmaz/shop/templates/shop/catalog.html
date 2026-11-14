@@ -4,6 +4,9 @@
 {% block content %}
 <h1>{{ title }}</h1>
 
+<!-- всплывающее уведомление корзины -->
+<div id="cartToast" class="cart-toast" style="display: none;"></div>
+
 <!-- панель фильтров -->
 <div class="catalog-filters">
     <div class="filter-group">
@@ -58,6 +61,7 @@
 <script>
 (function () {
     var apiUrl = '/api/products';
+    var toastTimer = null;
 
     // текущее состояние фильтров
     var filters = {
@@ -74,6 +78,19 @@
     // DOM элементы
     var grid = document.getElementById('productsGrid');
     var pagination = document.getElementById('pagination');
+    var toastEl = document.getElementById('cartToast');
+
+    function showToast(message, isError) {
+        if (!toastEl) return;
+        toastEl.textContent = message;
+        toastEl.className = 'cart-toast ' + (isError ? 'cart-toast-error' : 'cart-toast-success');
+        toastEl.style.display = 'block';
+
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () {
+            toastEl.style.display = 'none';
+        }, 3500);
+    }
 
     function buildUrl() {
         var params = [];
@@ -112,6 +129,7 @@
         var html = '';
         for (var i = 0; i < items.length; i++) {
             var p = items[i];
+            var inStock = Number(p.stock_quantity) > 0;
             html += '<div class="product-card" id="prod-' + p.id + '">';
             html += '  <div class="product-slider">';
             html += '    <img alt="" class="slider-image">';
@@ -129,6 +147,13 @@
             html += '      <span class="product-rating">★ ' + Number(p.rating).toFixed(1) + '</span>';
             html += '    </div>';
             html += '    <span class="product-stock">В наличии: ' + p.stock_quantity + ' шт.</span>';
+            html += '    <div class="product-actions">';
+            if (inStock) {
+                html += '      <button type="button" class="btn add-to-cart-btn" data-id="' + p.id + '" data-title="' + escapeHtml(p.title) + '">Добавить в корзину</button>';
+            } else {
+                html += '      <button type="button" class="btn add-to-cart-btn" disabled>Нет в наличии</button>';
+            }
+            html += '    </div>';
             html += '  </div>';
             html += '</div>';
         }
@@ -143,6 +168,44 @@
             }
         }
         initSliders();
+        initAddToCartButtons();
+    }
+
+    function initAddToCartButtons() {
+        var buttons = grid.querySelectorAll('.add-to-cart-btn[data-id]');
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].addEventListener('click', function () {
+                var btn = this;
+                var productId = btn.getAttribute('data-id');
+                var productTitle = btn.getAttribute('data-title');
+
+                if (!window.CartAPI || !CartAPI.getAccessToken()) {
+                    showToast('Войдите в аккаунт, чтобы добавить товар в корзину', true);
+                    return;
+                }
+
+                var originalText = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = 'Добавление...';
+
+                CartAPI.addToCart(productId, 1)
+                    .then(function (cartData) {
+                        CartAPI.updateHeaderBadge(cartData);
+                        showToast('Товар «' + productTitle + '» добавлен в корзину', false);
+                    })
+                    .catch(function (err) {
+                        if (err.status === 401) {
+                            showToast('Сессия истекла. Войдите в аккаунт заново', true);
+                        } else {
+                            showToast(err.message || 'Не удалось добавить товар', true);
+                        }
+                    })
+                    .finally(function () {
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    });
+            });
+        }
     }
 
     function escapeHtml(text) {
@@ -312,6 +375,8 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     transition: transform 0.2s;
+    display: flex;
+    flex-direction: column;
 }
 
 .product-card:hover {
@@ -374,6 +439,9 @@
 
 .product-info {
     padding: 12px 15px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
 }
 
 .product-info h3 {
@@ -409,6 +477,43 @@
 .product-stock {
     font-size: 12px;
     color: #888;
+}
+
+.product-actions {
+    margin-top: auto;
+    padding-top: 12px;
+}
+
+.add-to-cart-btn {
+    width: 100%;
+    cursor: pointer;
+}
+
+.add-to-cart-btn:disabled {
+    background: #ccc;
+    border-color: #bbb;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.cart-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+    padding: 12px 18px;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.cart-toast-success {
+    background: #28a745;
+}
+
+.cart-toast-error {
+    background: #d90000;
 }
 
 @media (max-width: 768px) {

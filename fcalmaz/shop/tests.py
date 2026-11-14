@@ -5,10 +5,11 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 from users.models import User
-from .models import Product
+from .models import Product, Cart, CartItem, PromoCode
 
 
 class ProductCatalogTests(TestCase):
+
     """Тесты для каталога товаров: фильтрация, сортировка, валидация."""
 
     def setUp(self):
@@ -169,3 +170,132 @@ class ProductCatalogTests(TestCase):
 
         resp = self.client.get(self.url, {'sort_by': 'price'})
         self.assertEqual(resp.json()['items'][-1]['title'], 'Щитки')
+
+class CartAndPromoTests(TestCase):
+    """Тесты для корзины: добавление, остатки на складе, обновление, удаление и промокоды."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='cartuser',
+            email='cart@example.com',
+            password='testpassword123'
+        )
+        self.client.force_authenticate(user=self.user)
+
+        self.product = Product.objects.create(
+            title='Игровая футболка FC Almaz',
+            description='Домашняя форма сезона',
+            price=2500.00,
+            stock_quantity=5,
+            images=['http://img1.jpg', 'http://img2.jpg', 'http://img3.jpg'],
+        )
+        self.cart_url = '/api/cart/'
+        self.items_url = '/api/cart/items/'
+        self.promo_url = '/api/cart/apply-promo/'
+
+    def test_get_empty_cart(self):
+        """Получение пустой корзины авторизованного пользователя."""
+        resp = self.client.get(self.cart_url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        data = resp.json()
+        self.assertEqual(data['items'], [])
+        self.assertEqual(data['total_price'], '0.00')
+
+    def test_unauthorized_access_denied(self):
+        """Неавторизованный запрос к корзине возвращает 401."""
+        anon_client = APIClient()
+        resp = anon_client.get(self.cart_url)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_add_item_and_stock_validation(self):
+        """Добавление товара в корзину, суммирование количества и проверка остатка."""
+        # Успешное добавление 3 штук
+        resp = self.client.post(
+            self.items_url,
+            {'product_id': self.product.id, 'quantity': 3},
+            format='json'
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        data = resp.json()
+        self.assertEqual(len(data['items']), 1)
+        self.assertEqual(data['items'][0]['quantity'], 3)
+        self.assertEqual(data['total_price'], '7500.00')
+
+        # Попытка добавить ещё 3 штуки (итого 6 > 5 на складе) -> 400
+        resp_over = self.client.post(
+            self.items_url,
+            {'product_id': self.product.id, 'quantity': 3},
+            format='json'
+        )
+        self.assertEqual(resp_over.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', resp_over.json())
+
+        # Нулевое или отрицательное количество -> 400
+        resp_zero = self.client.post(
+            self.items_url,
+            {'product_id': self.product.id, 'quantity': 0},
+            format='json'
+        )
+        self.assertEqual(resp_zero.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Несуществующий товар -> 404
+        resp_not_found = self.client.post(
+            self.items_url,
+            {'product_id': 999999, 'quantity': 1},
+            format='json'
+        )
+        self.assertEqual(resp_not_found.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_and_remove_item_dynamic_total(self):
+        """Обновление количества через PATCH, проверка остатка и удаление через DELETE."""
+        add_resp = self.client.post(
+            self.items_url,
+            {'product_id': self.product.id, 'quantity': 2},
+            format='json'
+        )
+        item_id = add_resp.json()['items'][0]['id']
+        item_url = f'{self.items_url}{item_id}/'
+
+        # Превышение остатка при PATCH -> 400
+        patch_over = self.client.patch(item_url, {'quantity': 10}, format='json')
+        self.assertEqual(patch_over.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Корректное обновление до 4 штук -> 200 и пересчёт total_price (4 * 2500 = 10000.00)
+        patch_ok = self.client.patch(item_url, {'quantity': 4}, format='json')
+        self.assertEqual(patch_ok.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_ok.json()['total_price'], '10000.00')
+
+        # Удаление позиции -> 200 и обнуление total_price
+        del_resp = self.client.delete(item_url)
+        self.assertEqual(del_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(del_resp.json()['items'], [])
+        self.assertEqual(del_resp.json()['total_price'], '0.00')
+
+    def test_apply_promo_code(self):
+        """Применение валидного и невалидного промокода к корзине."""
+        self.client.post(
+            self.items_url,
+            {'product_id': self.product.id, 'quantity': 2},
+            format='json'
+        )
+
+        # Валидный промокод SAVE10 (в нижнем регистре)
+        resp = self.client.post(self.promo_url, {'code': 'save10'}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        data = resp.json()
+        self.assertEqual(data['promo_code'], 'SAVE10')
+        self.assertEqual(data['discount_percentage'], 10)
+        self.assertEqual(data['original_price'], '5000.00')
+        self.assertEqual(data['discount_amount'], '500.00')
+        self.assertEqual(data['final_price'], '4500.00')
+
+        # Несуществующий промокод -> 400
+        bad_resp = self.client.post(self.promo_url, {'code': 'FAKECODE'}, format='json')
+        self.assertEqual(bad_resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', bad_resp.json())
+
+        # Неактивный промокод -> 400
+        PromoCode.objects.create(code='OLD20', discount_percentage=20, is_active=False)
+        inactive_resp = self.client.post(self.promo_url, {'code': 'OLD20'}, format='json')
+        self.assertEqual(inactive_resp.status_code, status.HTTP_400_BAD_REQUEST)

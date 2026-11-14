@@ -1,13 +1,14 @@
 from django.db import models
 from django.conf import settings
+from decimal import Decimal
 
 
 class Product(models.Model):
     title = models.CharField(max_length=255, verbose_name="Название")
     description = models.TextField(blank=True, verbose_name="Описание")
     price = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
+        max_digits=10,
+        decimal_places=2,
         verbose_name="Цена"
     )
     rating = models.FloatField(default=0.0, verbose_name="Рейтинг")
@@ -16,7 +17,7 @@ class Product(models.Model):
         verbose_name="Изображения (URLs)"
     )
     stock_quantity = models.PositiveIntegerField(
-        default=0, 
+        default=0,
         verbose_name="Количество на складе"
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -47,7 +48,7 @@ class Cart(models.Model):
 
     @property
     def total_price(self):
-        return sum(item.subtotal for item in self.items.all())
+        return sum((item.subtotal for item in self.items.select_related('product').all()), Decimal('0.00'))
 
 
 class CartItem(models.Model):
@@ -76,8 +77,8 @@ class CartItem(models.Model):
 
 class PromoCode(models.Model):
     code = models.CharField(
-        max_length=50, 
-        unique=True, 
+        max_length=50,
+        unique=True,
         verbose_name="Промокод"
     )
     discount_percentage = models.IntegerField(
