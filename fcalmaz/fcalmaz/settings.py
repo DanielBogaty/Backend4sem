@@ -293,8 +293,9 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'TAGS': [
-        {'name': 'auth', 'description': 'Authentication endpoints'},
-        {'name': 'shop', 'description': 'Shop and Cart endpoints'},
+        {'name': 'auth', 'description': 'Authentication endpoints (register, login, JWT)'},
+        {'name': 'products', 'description': 'Catalog: search, filters, sorting, pagination (DB-level)'},
+        {'name': 'cart', 'description': 'Personal cart, stock validation and promo codes'},
     ],
     'ENUM_NAME_OVERRIDES': {},
     'POSTPROCESSING_HOOKS': [],
