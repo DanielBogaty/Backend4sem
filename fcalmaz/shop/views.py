@@ -20,15 +20,11 @@ from .serializers import (
 
 
 class IsAdminUser(permissions.BasePermission):
-    """Разрешение только для администраторов"""
-
     def has_permission(self, request, view):
         return request.user and request.user.role == 'admin'
 
 
 class IsCustomerUser(permissions.BasePermission):
-    """Разрешение только для покупателей"""
-
     def has_permission(self, request, view):
         return request.user and request.user.role == 'customer'
 
@@ -65,7 +61,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         return [permissions.AllowAny()]
 
     def filter_queryset(self, queryset):
-        # кастомная сортировка через sort_by и order
         sort_by = self.request.query_params.get('sort_by')
         order = self.request.query_params.get('order', 'asc')
 
@@ -99,7 +94,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         ],
     )
     def list(self, request, *args, **kwargs):
-        # Кэширование запросов каталога
         version = cache.get(CATALOG_VERSION_KEY, 0)
         cache_key = f"products_v{version}_{request.GET.urlencode()}"
         cached_data = cache.get(cache_key)
@@ -107,10 +101,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         if cached_data:
             return Response(cached_data)
 
-        # Фильтрация
         queryset = self.filter_queryset(self.get_queryset())
 
-        # Фильтр по цене
         min_price = request.query_params.get('min_price')
         max_price = request.query_params.get('max_price')
         if min_price:
@@ -118,12 +110,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         if max_price:
             queryset = queryset.filter(price__lte=max_price)
 
-        # Фильтр по рейтингу
         min_rating = request.query_params.get('min_rating')
         if min_rating:
             queryset = queryset.filter(rating__gte=min_rating)
 
-        # Пагинация
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -137,7 +127,6 @@ class ProductViewSet(viewsets.ModelViewSet):
                 }
             }
 
-            # Сохраняем в кэш
             cache.set(cache_key, response_data, timeout=120)
 
             return Response(response_data)
@@ -390,7 +379,7 @@ class CatalogPageView(TemplateView):
     template_name = 'shop/catalog.html'
     extra_context = {'title': 'Каталог товаров'}
 
-class CartPageView(LoginRequiredMixin, TemplateView):
+class CartPageView(TemplateView):
     """Страница корзины покупок."""
     template_name = 'shop/cart.html'
     extra_context = {'title': 'Корзина'}

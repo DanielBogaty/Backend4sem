@@ -17,14 +17,12 @@ class ProductCatalogTests(TestCase):
         self.client = APIClient()
         self.url = reverse('shop:product-list')
 
-        # создаём обычного пользователя
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
             password='testpass123'
         )
 
-        # создаём админа
         self.admin = User.objects.create_user(
             username='admin',
             email='admin@example.com',
@@ -32,7 +30,6 @@ class ProductCatalogTests(TestCase):
             role='admin'
         )
 
-        # товары для тестов
         Product.objects.create(
             title='Мяч футбольный',
             description='Официальный мяч',
@@ -57,30 +54,26 @@ class ProductCatalogTests(TestCase):
 
     def test_filter_by_price(self):
         """Фильтрация по min_price и max_price."""
-        # min_price
         resp = self.client.get(self.url, {'min_price': 2000})
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         data = resp.json()
-        self.assertEqual(len(data['items']), 2)  # мяч и бутсы
+        self.assertEqual(len(data['items']), 2)
         prices = [item['price'] for item in data['items']]
         for p in prices:
             self.assertGreaterEqual(float(p), 2000)
 
-        # max_price
         resp = self.client.get(self.url, {'max_price': 1500})
         data = resp.json()
-        self.assertEqual(len(data['items']), 1)  # только щитки
+        self.assertEqual(len(data['items']), 1)
         self.assertEqual(data['items'][0]['title'], 'Щитки')
 
     def test_sort_by_price(self):
         """Сортировка по цене через sort_by и order."""
-        # по возрастанию
         resp = self.client.get(self.url, {'sort_by': 'price', 'order': 'asc'})
         data = resp.json()
         prices = [float(item['price']) for item in data['items']]
         self.assertEqual(prices, sorted(prices))
 
-        # по убыванию
         resp = self.client.get(self.url, {'sort_by': 'price', 'order': 'desc'})
         data = resp.json()
         prices = [float(item['price']) for item in data['items']]
@@ -102,7 +95,7 @@ class ProductCatalogTests(TestCase):
             'description': 'Описание',
             'price': 500,
             'rating': 4.0,
-            'images': ['http://img1.jpg', 'http://img2.jpg'],  # только 2
+            'images': ['http://img1.jpg', 'http://img2.jpg'],
         }
         resp = self.client.post(self.url, payload, format='json')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
@@ -210,7 +203,6 @@ class CartAndPromoTests(TestCase):
 
     def test_add_item_and_stock_validation(self):
         """Добавление товара в корзину, суммирование количества и проверка остатка."""
-        # Успешное добавление 3 штук
         resp = self.client.post(
             self.items_url,
             {'product_id': self.product.id, 'quantity': 3},
@@ -222,7 +214,6 @@ class CartAndPromoTests(TestCase):
         self.assertEqual(data['items'][0]['quantity'], 3)
         self.assertEqual(data['total_price'], '7500.00')
 
-        # Попытка добавить ещё 3 штуки (итого 6 > 5 на складе) -> 400
         resp_over = self.client.post(
             self.items_url,
             {'product_id': self.product.id, 'quantity': 3},
@@ -231,7 +222,6 @@ class CartAndPromoTests(TestCase):
         self.assertEqual(resp_over.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('error', resp_over.json())
 
-        # Нулевое или отрицательное количество -> 400
         resp_zero = self.client.post(
             self.items_url,
             {'product_id': self.product.id, 'quantity': 0},
@@ -239,7 +229,6 @@ class CartAndPromoTests(TestCase):
         )
         self.assertEqual(resp_zero.status_code, status.HTTP_400_BAD_REQUEST)
 
-        # Несуществующий товар -> 404
         resp_not_found = self.client.post(
             self.items_url,
             {'product_id': 999999, 'quantity': 1},
@@ -257,16 +246,13 @@ class CartAndPromoTests(TestCase):
         item_id = add_resp.json()['items'][0]['id']
         item_url = f'{self.items_url}{item_id}/'
 
-        # Превышение остатка при PATCH -> 400
         patch_over = self.client.patch(item_url, {'quantity': 10}, format='json')
         self.assertEqual(patch_over.status_code, status.HTTP_400_BAD_REQUEST)
 
-        # Корректное обновление до 4 штук -> 200 и пересчёт total_price (4 * 2500 = 10000.00)
         patch_ok = self.client.patch(item_url, {'quantity': 4}, format='json')
         self.assertEqual(patch_ok.status_code, status.HTTP_200_OK)
         self.assertEqual(patch_ok.json()['total_price'], '10000.00')
 
-        # Удаление позиции -> 200 и обнуление total_price
         del_resp = self.client.delete(item_url)
         self.assertEqual(del_resp.status_code, status.HTTP_200_OK)
         self.assertEqual(del_resp.json()['items'], [])
@@ -280,7 +266,6 @@ class CartAndPromoTests(TestCase):
             format='json'
         )
 
-        # Валидный промокод SAVE10 (в нижнем регистре)
         resp = self.client.post(self.promo_url, {'code': 'save10'}, format='json')
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         data = resp.json()
@@ -290,12 +275,10 @@ class CartAndPromoTests(TestCase):
         self.assertEqual(data['discount_amount'], '500.00')
         self.assertEqual(data['final_price'], '4500.00')
 
-        # Несуществующий промокод -> 400
         bad_resp = self.client.post(self.promo_url, {'code': 'FAKECODE'}, format='json')
         self.assertEqual(bad_resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('error', bad_resp.json())
 
-        # Неактивный промокод -> 400
         PromoCode.objects.create(code='OLD20', discount_percentage=20, is_active=False)
         inactive_resp = self.client.post(self.promo_url, {'code': 'OLD20'}, format='json')
         self.assertEqual(inactive_resp.status_code, status.HTTP_400_BAD_REQUEST)
