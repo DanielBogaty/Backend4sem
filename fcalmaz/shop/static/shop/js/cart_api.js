@@ -19,13 +19,11 @@
     }
 
     function getAccessToken() {
-        // 1. Всегда берём свежий JWT токен текущего залогиненного пользователя из meta-тега
         var meta = document.querySelector('meta[name="jwt-access"]');
         if (meta && meta.content) {
             localStorage.setItem('access_token', meta.content);
             return meta.content;
         }
-        // 2. Иначе берём из localStorage (если вход был напрямую через /api/auth/login)
         return localStorage.getItem('access_token');
     }
 
