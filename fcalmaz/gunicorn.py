@@ -8,6 +8,7 @@ bind = '0.0.0.0:' + environ.get('PORT', '8000')
 max_requests = 1000
 worker_class = 'gevent'
 workers = max_workers()
+worker_tmp_dir = '/tmp'
 
 env = {
     'DJANGO_SETTINGS_MODULE': 'fcalmaz.settings'
