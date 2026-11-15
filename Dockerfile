@@ -12,7 +12,9 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 FROM python:3.12-slim
 
-RUN groupadd -r groupdjango && useradd -r -g groupdjango userdj
+RUN groupadd -r groupdjango && useradd -r -g groupdjango userdj \
+    && mkdir -p /home/userdj \
+    && chown -R userdj:groupdjango /home/userdj
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
