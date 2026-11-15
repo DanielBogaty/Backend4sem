@@ -118,9 +118,8 @@ DATABASES = {
 
 CACHES = {
     "default": {
-        # "BACKEND": "django.core.cache.backends.dummy.DummyCache",
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://redis:6379/1",
+        "LOCATION": os.environ.get("REDIS_URL", "redis://redis:6379/1"),
     }
 }
 
@@ -268,7 +267,12 @@ CORS_ALLOWED_ORIGINS = [
     'http://mysite.by',
     'https://mysite.by',
 ]
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    'CSRF_TRUSTED_ORIGINS',
+    'https://*.onrender.com,http://localhost:8000,http://localhost:80'
+).split(',')
 CORS_ALLOW_CREDENTIALS = True
+
 
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
@@ -289,8 +293,9 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'TAGS': [
-        {'name': 'auth', 'description': 'Authentication endpoints'},
-        {'name': 'shop', 'description': 'Shop and Cart endpoints'},
+        {'name': 'auth', 'description': 'Authentication endpoints (register, login, JWT)'},
+        {'name': 'products', 'description': 'Catalog: search, filters, sorting, pagination (DB-level)'},
+        {'name': 'cart', 'description': 'Personal cart, stock validation and promo codes'},
     ],
     'ENUM_NAME_OVERRIDES': {},
     'POSTPROCESSING_HOOKS': [],

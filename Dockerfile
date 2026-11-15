@@ -9,9 +9,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY fcalmaz/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
+
 FROM python:3.12-slim
 
-RUN groupadd -r groupdjango && useradd -r -g groupdjango userdj
+RUN groupadd -r groupdjango && useradd -r -g groupdjango userdj \
+    && mkdir -p /home/userdj \
+    && chown -R userdj:groupdjango /home/userdj
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -20,10 +23,12 @@ WORKDIR /app/www/fcalmaz
 
 COPY --from=builder /install /usr/local
 COPY fcalmaz/ .
+COPY start.sh /app/www/fcalmaz/start.sh
 
 ENV DJANGO_SECRET_KEY="build-key" DJANGO_ALLOWED_HOSTS="127.0.0.1 localhost"
 
 RUN python manage.py collectstatic --noinput
+RUN chmod +x /app/www/fcalmaz/start.sh
 
 RUN chown -R userdj:groupdjango /app/www/fcalmaz
 
