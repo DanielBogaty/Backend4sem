@@ -54,6 +54,7 @@ docker compose exec fcalmaz python manage.py migrate
 # 3. Создание суперпользователя (администратора)
 docker compose exec fcalmaz python manage.py createsuperuser
 # (Опционально) Загрузи начальные данные, если есть db.json
+docker compose exec fcalmaz python manage.py shell -c "from django.contrib.contenttypes.models import ContentType; ContentType.objects.all().delete()"
 docker compose exec fcalmaz python manage.py loaddata db.json
 
 Повседневное использование
